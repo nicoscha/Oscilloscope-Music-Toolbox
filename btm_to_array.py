@@ -62,6 +62,39 @@ def write_black_px_list_to_wav(path, black_px_list):
                 wav.writeframes(in_bytes(y + 32760))
 
 
+def _max_min_x_y_in_px_list(px_list):
+    max_x_p, max_y_p = px_list[0]
+    min_x_p, min_y_p = px_list[0]
+    for x, y in px_list:
+        if x > max_x_p:
+            max_x_p = x
+        if y > max_y_p:
+            max_y_p = y
+        if x < min_x_p:
+            min_x_p = x
+        if y < min_y_p:
+            min_y_p = y
+    return max_x_p, max_y_p, min_x_p, min_y_p
+
+
+def _centered(black_px_list):
+    max_x_p, max_y_p, min_x_p, min_y_p =  _max_min_x_y_in_px_list(black_px_list)
+    size_x = abs(max_x_p) - abs(min_x_p)
+    size_y = abs(max_y_p) - abs(min_y_p)
+    centered_black_px_list = []
+    for x, y in black_px_list:
+        if x > 0:
+            new_x = -(min_x_p + size_x / 2) + x
+        else:
+            new_x = -(-(min_x_p - size_x / 2) + x)
+        if y > 0:
+            new_y = -(min_y_p + size_y / 2) + y
+        else:
+            new_y = -(-(min_y_p - size_y / 2) + y)
+        centered_black_px_list.append((new_x, new_y))
+    return centered_black_px_list
+
+
 def _borders(px):
     y_range = 400  # Rows to be scanned
     x_range = 400  # Rows to be scanned
@@ -93,6 +126,7 @@ def main(path, starting_point=None):
                 black_px_list.append((x, y))
     black_px_list = _order_black_px_list(black_px_list, starting_point)
     black_px_list = black_px_list + list(reversed(black_px_list))
+    black_px_list = _centered(black_px_list)
     write_black_px_list_to_wav(path, black_px_list)
     #print(black_px_list)
 
