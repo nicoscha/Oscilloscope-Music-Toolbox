@@ -40,8 +40,6 @@ def _order_black_px_list(black_px_list, starting_point=None):
     for i in range(len_list):
         closed_neighbour = _closed_neighbour(unvisited_px_list,
                                              starting_point)
-        # print(sorted_px_list, unvisited_px_list, closed_neighbour,
-        #      starting_point)
         sorted_px_list.append(closed_neighbour)
         unvisited_px_list.remove(closed_neighbour)
         starting_point = closed_neighbour
@@ -56,7 +54,7 @@ def write_black_px_list_to_wav(path, black_px_list):
     with wave.open(path.replace('.bmp', '.wav'), 'wb') as wav:
         wav.setparams((CHANNELS, SAMPLEWIDTH, FRAMERATE, NFRAMES,
                        'NONE', 'not compressed'))
-        for i in range(10*len(black_px_list)):
+        for i in range(NFRAMES % len(black_px_list)):
             for x, y in black_px_list:
                 wav.writeframes(in_bytes(x + 32760))
                 wav.writeframes(in_bytes(y + 32760))
@@ -110,41 +108,18 @@ def _centered(black_px_list):
     return centered_black_px_list
 
 
-def _borders(px):
-    y_range = 400  # Rows to be scanned
-    x_range = 400  # Rows to be scanned
-    for x in range(x_range):
-        try:
-            px[x,1]  # Access obj to find border
-        except IndexError:
-            x_range = x - 1
-            break
-    for y in range(y_range):
-        try:
-            px[1,y]  # Access obj to find border
-        except IndexError:
-            y_range = y - 1
-            break
-    return x, y
-
-
 def main(path, starting_point=None):
     if path[-4:] != '.bmp':
         raise ValueError('File is not a .bmp')
     img = Image.open(path)
     px = img.load()
-    y_range, x_range = _borders(px)
+    y_range, x_range = img.size
     black_px_list = []
     for x in range(x_range):
         for y in range(y_range):
-            if px[x,y] == 0:
+            if px[x,y] == 0 or px[x,y] == (0, 0, 0):
                 black_px_list.append((x, y))
     black_px_list = _order_black_px_list(black_px_list, starting_point)
     black_px_list = black_px_list + list(reversed(black_px_list))
     black_px_list = _centered(black_px_list)
     write_black_px_list_to_wav(path, black_px_list)
-    #print(black_px_list)
-
-
-if __name__ == '__main__':
-    main('test_bmp.bmp', (1, 49))
