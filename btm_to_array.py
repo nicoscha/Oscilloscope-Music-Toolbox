@@ -78,19 +78,34 @@ def _max_min_x_y_in_px_list(px_list):
 
 
 def _centered(black_px_list):
-    max_x_p, max_y_p, min_x_p, min_y_p =  _max_min_x_y_in_px_list(black_px_list)
-    size_x = abs(max_x_p) - abs(min_x_p)
-    size_y = abs(max_y_p) - abs(min_y_p)
+    max_x_p, max_y_p, min_x_p, min_y_p = _max_min_x_y_in_px_list(black_px_list)
+    if max_x_p > 0 and min_x_p > 0:
+        size_x = max_x_p - min_x_p
+    else:  # Both negative
+        size_x = min_x_p - max_x_p
+    if max_y_p > 0 and min_y_p > 0:
+        size_y = max_y_p - min_y_p
+    else:  # Both negative
+        size_y = min_y_p - max_y_p
+
     centered_black_px_list = []
     for x, y in black_px_list:
-        if x > 0:
-            new_x = -(min_x_p + size_x / 2) + x
-        else:
-            new_x = -(-(min_x_p - size_x / 2) + x)
-        if y > 0:
-            new_y = -(min_y_p + size_y / 2) + y
-        else:
-            new_y = -(-(min_y_p - size_y / 2) + y)
+        dist_to_old_max_x = max_x_p - x
+        if min_x_p > 0 and max_x_p > 0:  # All points positive
+            new_x = size_x / 2 - dist_to_old_max_x
+        elif min_x_p < 0 < max_x_p:  # Points positive and negative
+            new_x = -(size_x / 2 - (- dist_to_old_max_x))
+        else:  # All points negative
+            new_x = size_x / 2 - (- dist_to_old_max_x)
+
+        dist_to_old_max_y = max_y_p - y
+        if min_y_p > 0 and max_y_p > 0:  # All points positive
+            new_y = size_y / 2 - dist_to_old_max_y
+        elif min_y_p < 0 < max_y_p:  # Points positive and negative
+            new_y = -(size_y / 2 - (- dist_to_old_max_y))
+        else:  # All points negative
+            new_y = size_y / 2 - (- dist_to_old_max_y)
+
         centered_black_px_list.append((new_x, new_y))
     return centered_black_px_list
 
