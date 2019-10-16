@@ -9,7 +9,7 @@ class BasicWave(object):
     def __init__(self, frequency, phi=0.0, amplitude=1.0, offset=0.0):
         """
 
-        :param frequency:
+        :param frequency: Hz
         :param phi: sin = phi=0.0; cos = phi=math.pi/2
         :param amplitude:
         :param offset: DC offset
@@ -62,9 +62,6 @@ class BasicWave(object):
     def __str__(self):
         for f, p, a, o in self._wave_description():
             return f'f={f}Hz, p={p}Phi, a={a}, offset={o}; '
-
-        return (f'f={self.frequency}Hz, p={self.phi}Phi, '
-                f'a={self.amplitude}, offset={self.offset}')
 
     def __add__(self, other):
         if isinstance(other, BasicWave) or isinstance(other, Wave):
