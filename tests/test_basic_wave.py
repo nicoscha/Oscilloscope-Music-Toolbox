@@ -27,7 +27,7 @@ class BasicWave(unittest.TestCase):
 
     def test_init_amplitude_value_range(self):
         self.assertEqual(1.0, basic_wave.BasicWave(440,
-                                                     amplitude=1.5).amplitude)
+                                                   amplitude=1.5).amplitude)
         self.assertEqual(1.0, basic_wave.BasicWave(440,
                                                    amplitude=-5.1).amplitude)
 
@@ -46,6 +46,19 @@ class BasicWave(unittest.TestCase):
                                                    offset=1.5).offset)
         self.assertEqual(0.0, basic_wave.BasicWave(440,
                                                    offset=-5.1).offset)
+
+    def test_add_return(self):
+        a_w = basic_wave.BasicWave(400)
+        b_w = basic_wave.BasicWave(493.88)
+        x_w = basic_wave.Wave([(770, 0.0, 1.0, 0.0)])
+        self.assertIsInstance(a_w + b_w , basic_wave.Wave)
+        self.assertIsInstance(a_w + x_w, basic_wave.Wave)
+
+    def test_play_in_bytes(self):
+        a_w = basic_wave.BasicWave(400)
+        self.assertIsInstance(a_w.play(), bytes)
+        a_w = basic_wave.BasicWave(400)
+        self.assertIsInstance(a_w.play(in_bytes=False), float)
 
 
 if __name__ == '__main__':

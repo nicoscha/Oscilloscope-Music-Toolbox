@@ -57,18 +57,29 @@ class BasicWave(object):
                             'offset has been set to 0.0. '
                             f'State: {self}')
         self.t = 0
-        logging.debug(f'Created BasicWave f={self.frequency}, p={self.phi}, '
-                      f'a={self.amplitude}, offset={self.offset}')
+        logging.debug(f'Created BasicWave {str(self)}')
 
     def __str__(self):
+        for f, p, a, o in self._wave_description():
+            return f'f={f}Hz, p={p}Phi, a={a}, offset={o}; '
+
         return (f'f={self.frequency}Hz, p={self.phi}Phi, '
                 f'a={self.amplitude}, offset={self.offset}')
 
     def __add__(self, other):
-        return Wave(wave_description=[(self.frequency, self.phi,
-                                       self.amplitude, self.offset),
-                                      (other.frequency, other.phi,
-                                       other.amplitude, other.offset)])
+        if isinstance(other, BasicWave) or isinstance(other, Wave):
+            return Wave(wave_description=self._wave_description() + other._wave_description())
+        else:
+            raise NotImplementedError
+
+    def _wave_description(self):
+        """
+        Returns a list of tuples. Each tuple describes a frequency
+        :return:
+        """
+        wave_description = [(self.frequency, self.phi, self.amplitude,
+                             self.offset)]
+        return wave_description
 
     def play(self, in_bytes=True):
         """
@@ -105,12 +116,12 @@ class Wave(BasicWave):
             elif type(wave_description[0] is BasicWave):
                 for wave in wave_description:
                     self.frequencies.append(wave)
-        logging.debug(f'Created Wave wave_description={self}')
+        logging.debug(f'Created Wave wave_description={str(self)}')
 
     def __str__(self):
         s = ''
-        for f, p, a, o in self._wave_description():
-            s += f'f={f}Hz, p={p}Phi, a={a}, offset={o}; '
+        for wave in self.frequencies:
+            s += str(wave)
         return s
 
     def __add__(self, other):
@@ -123,8 +134,7 @@ class Wave(BasicWave):
         """
         wave_description = []
         for wave in self.frequencies:
-            wave_description.append((wave.frequency, wave.phi, wave.amplitude,
-                                     wave.offset))
+            wave_description += wave._wave_description()
         return wave_description
 
     def play(self):
