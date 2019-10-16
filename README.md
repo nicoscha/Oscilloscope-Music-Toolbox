@@ -1,2 +1,4 @@
 # Oscilloscope-Music-Toolbox
-Tools to create oscilloscope music
+Tools to create oscilloscope music with python
+
+WIP
