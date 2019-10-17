@@ -14,7 +14,7 @@ class BasicWave(object):
         :param amplitude:
         :param offset: DC offset
         """
-        logging.debug(f'Creating BasicWave f={frequency}, p={phi}, '
+        logging.debug(f'Creating BasicWave f={frequency}Hz, p={phi}Phi, '
                       f'a={amplitude}, offset={offset}')
 
         if type(frequency) is int or type(frequency) is float:
@@ -56,7 +56,7 @@ class BasicWave(object):
                             f'{type(offset)}={str(offset)}. '
                             'offset has been set to 0.0. '
                             f'State: {self}')
-        self.t = 0
+        self.t = 1
         logging.debug(f'Created BasicWave {str(self)}')
 
     def __str__(self):
@@ -86,12 +86,10 @@ class BasicWave(object):
         """
         # Formula x = a*sin(w(t)+p) * scaling + offset
         frame = (self.amplitude
-             * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
-             * 125.0 + (125.0 * self.offset))
+                 * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
+                 * 125.0 + (125.0 * self.offset))
 
-        self.t += 1
-        if self.t > FRAMERATE:  # Keep self.t small to save memory
-            self.t = 0
+        self.t += 1  # TODO reset self.t to keep small to save memory
         b = int(frame).to_bytes(2, byteorder='big', signed=True)
         return b if in_bytes else frame
 
@@ -124,6 +122,7 @@ class Wave(BasicWave):
     def __add__(self, other):
         return Wave(wave_description=(self._wave_description() +
                                       other._wave_description()))
+
     def _wave_description(self):
         """
         Returns a list of tuples. Each tuple describes a frequency
