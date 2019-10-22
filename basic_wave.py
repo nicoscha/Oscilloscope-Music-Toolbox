@@ -14,17 +14,18 @@ def _limit(signal):
         return LOWER_XY_LIMIT
     return signal
 
+
 class BasicWave(object):
-    def __init__(self, frequency, phi=0.0, amplitude=1.0, offset=0.0):
+    def __init__(self, frequency, phi=0.0, magnitude=1.0, offset=0.0):
         """
 
         :param frequency: Hz
         :param phi: sin = phi=0.0; cos = phi=math.pi/2
-        :param amplitude:
+        :param magnitude:
         :param offset: DC offset
         """
         logging.debug(f'Creating BasicWave f={frequency}Hz, p={phi}Phi, '
-                      f'a={amplitude}, offset={offset}')
+                      f'a={magnitude}, offset={offset}')
 
         if type(frequency) is int or type(frequency) is float:
             self.frequency = frequency
@@ -36,26 +37,26 @@ class BasicWave(object):
             self.phi = phi
         else:
             raise ValueError('Phi must be int or float not '
-                             f'{type(phi)}={str(phi)}. Phi has been set to 0.0.'
+                             f'{type(phi)}={str(phi)}. Phi set to 0.0'
                              )
 
-        if type(amplitude) is int or type(amplitude) is float:
-            if amplitude > 1.0 or amplitude < 0.0:
-                logging.warning('Amplitude must be between '
-                                f'0.0 and 1.0 is {amplitude}'
-                                'amplitude has been set to 1.0.')
-                self.amplitude = 1.0
+        if type(magnitude) is int or type(magnitude) is float:
+            if magnitude > 1.0 or magnitude < -1.0:
+                logging.warning('Magnitude must be between '
+                                f'-1.0 and 1.0 is {magnitude}'
+                                'magnitude set to the closer one.')
+                self.magnitude = 1.0 if magnitude > 1.0 else -1.0
             else:
-                self.amplitude = amplitude
+                self.magnitude = magnitude
         else:
-            raise ValueError('Amplitude must be int or float not '
-                             f'{type(amplitude)}={str(amplitude)}. ')
+            raise ValueError('Magnitude must be int or float not '
+                             f'{type(magnitude)}={str(magnitude)}. ')
 
         if type(offset) is int or type(offset) is float:
             if offset > 1.0 or offset < -1.0:
                 logging.warning('Offset must be between '
                                 f'-1.0 and 1.0 is {offset} '
-                                'offset has been set to 1.0.')
+                                'offset set to 1.0')
                 self.offset = 0.0
             else:
                 self.offset = offset
@@ -63,7 +64,7 @@ class BasicWave(object):
             self.offset = 0.0
             raise ValueError('Offset must be int or float not '
                              f'{type(offset)}={str(offset)}. '
-                             'offset has been set to 0.0. '
+                             'offset set to 0.0 '
                              f'State: {self}')
         self.t = 1
         logging.debug(f'Created BasicWave {str(self)}')
@@ -84,7 +85,7 @@ class BasicWave(object):
         Returns a list of tuples. Each tuple describes a frequency
         :return:
         """
-        wave_description = [(self.frequency, self.phi, self.amplitude,
+        wave_description = [(self.frequency, self.phi, self.magnitude,
                              self.offset)]
         return wave_description
 
@@ -95,7 +96,7 @@ class BasicWave(object):
         :return:
         """
         # Formula x = a*sin(w(t)+p) * scaling + offset
-        frame = (self.amplitude
+        frame = (self.magnitude
                  * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
                  * 32767.0 + (32767.0 * self.offset))
 
@@ -104,7 +105,7 @@ class BasicWave(object):
         return b if in_bytes else frame
 
 
-class Wave(BasicWave):
+class Wave(object):
     def __init__(self, wave_description):
         """
         :param wave_description: tuple of f and p
@@ -113,15 +114,20 @@ class Wave(BasicWave):
         self.frequencies = []
         if type(wave_description) is list:
             if type(wave_description[0]) is tuple:
-                for frequency, phi, amplitude, offset in wave_description:
+                for frequency, phi, magnitude, offset in wave_description:
+                    if magnitude == 0.0:
+                        logging.debug(f'Frequency {frequency}Hz with '
+                                      'magnitude of 0.0 skipped')
+                        continue
                     self.frequencies.append(BasicWave(frequency=frequency,
                                                       phi=phi,
-                                                      amplitude=amplitude,
+                                                      magnitude=magnitude,
                                                       offset=offset))
             elif type(wave_description[0] is BasicWave):
                 for wave in wave_description:
                     self.frequencies.append(wave)
-        logging.debug(f'Created Wave wave_description={str(self)}')
+        logging.debug('Created Wave wave_description='
+                      f'{self._wave_description()}')
 
     def __str__(self):
         s = ''
@@ -149,7 +155,7 @@ class Wave(BasicWave):
         :return:
         """
         frame = 0
-        fraction_of_frequencies = 1/len(self.frequencies)
         for basic_wave in self.frequencies:
-            frame += basic_wave.play(in_bytes=False) * fraction_of_frequencies
-        return int(frame).to_bytes(2, byteorder='big', signed=True)
+            frame += basic_wave.calculate_frame()
+        frame *= 32767.0 #+ (32767.0 * self.offset)
+        return _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)
