@@ -49,7 +49,7 @@ class BasicWave(object):
                 self.amplitude = amplitude
         else:
             raise ValueError('Amplitude must be int or float not '
-                            f'{type(amplitude)}={str(amplitude)}. ')
+                             f'{type(amplitude)}={str(amplitude)}. ')
 
         if type(offset) is int or type(offset) is float:
             if offset > 1.0 or offset < -1.0:
@@ -62,9 +62,9 @@ class BasicWave(object):
         else:
             self.offset = 0.0
             raise ValueError('Offset must be int or float not '
-                            f'{type(offset)}={str(offset)}. '
-                            'offset has been set to 0.0. '
-                            f'State: {self}')
+                             f'{type(offset)}={str(offset)}. '
+                             'offset has been set to 0.0. '
+                             f'State: {self}')
         self.t = 1
         logging.debug(f'Created BasicWave {str(self)}')
 
@@ -74,7 +74,8 @@ class BasicWave(object):
 
     def __add__(self, other):
         if isinstance(other, BasicWave) or isinstance(other, Wave):
-            return Wave(wave_description=self._wave_description() + other._wave_description())
+            return Wave(wave_description=(self._wave_description()
+                                          + other._wave_description()))
         else:
             raise NotImplementedError
 
