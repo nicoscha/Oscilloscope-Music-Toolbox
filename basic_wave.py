@@ -5,6 +5,15 @@ logging.basicConfig(level=logging.DEBUG)
 FRAMERATE = 48000
 
 
+def _limit(signal):
+    UPPER_XY_LIMIT = 32767
+    LOWER_XY_LIMIT = -32767
+    if signal > UPPER_XY_LIMIT:
+        return UPPER_XY_LIMIT
+    elif signal < LOWER_XY_LIMIT:
+        return LOWER_XY_LIMIT
+    return signal
+
 class BasicWave(object):
     def __init__(self, frequency, phi=0.0, amplitude=1.0, offset=0.0):
         """
@@ -87,10 +96,10 @@ class BasicWave(object):
         # Formula x = a*sin(w(t)+p) * scaling + offset
         frame = (self.amplitude
                  * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
-                 * 125.0 + (125.0 * self.offset))
+                 * 32767.0 + (32767.0 * self.offset))
 
         self.t += 1  # TODO reset self.t to keep small to save memory
-        b = int(frame).to_bytes(2, byteorder='big', signed=True)
+        b = _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)
         return b if in_bytes else frame
 
 

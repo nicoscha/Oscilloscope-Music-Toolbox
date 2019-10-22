@@ -9,4 +9,4 @@ def _limit(signal):
 
 
 def in_bytes(signal):
-    return int(_limit(signal)).to_bytes(2, byteorder='big')
+    return int(_limit(signal)).to_bytes(2, byteorder='little', signed=True)
