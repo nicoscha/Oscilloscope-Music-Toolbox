@@ -78,7 +78,7 @@ class BasicWave(object):
             return Wave(wave_description=(self._wave_description()
                                           + other._wave_description()))
         else:
-            raise NotImplementedError
+            raise NotImplemented
 
     def _wave_description(self):
         """
@@ -92,7 +92,7 @@ class BasicWave(object):
     def calculate_frame(self):
         frame = (self.magnitude
                  * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
-                 )  # TODO add offset
+                )
         self.t += 1  # TODO reset self.t to keep small to save memory
         return frame
 
@@ -133,6 +133,8 @@ class Wave(object):
             elif type(wave_description[0] is BasicWave):
                 for wave in wave_description:
                     self.frequencies.append(wave)
+        else:
+            raise NotImplemented
         logging.debug('Created Wave wave_description='
                       f'{self._wave_description()}')
 

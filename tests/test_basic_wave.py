@@ -70,9 +70,13 @@ class BasicWave(unittest.TestCase):
 
     def test_wave_description(self):
         a_w_description = (440, pi/2, 0.63, 0.87)
-        a_w = basic_wave.BasicWave(a_w_description[0], phi=a_w_description[1],
-                                   magnitude=a_w_description[2],
-                                   offset=a_w_description[3])
+        frequency = a_w_description[0]
+        phi = a_w_description[1]
+        magnitude = a_w_description[2]
+        offset = a_w_description[3]
+        a_w = basic_wave.BasicWave(frequency, phi=phi, magnitude=magnitude,
+                                   offset=offset)
+
         self.assertEqual([a_w_description], a_w._wave_description())
 
     def test_calculate_frame(self):
@@ -81,14 +85,13 @@ class BasicWave(unittest.TestCase):
         phi = a_w_description[1]
         magnitude = a_w_description[2]
         offset = a_w_description[3]
-
         a_w = basic_wave.BasicWave(frequency, phi=phi, magnitude=magnitude,
                                    offset=offset)
 
         for t in range(1, int(basic_wave.FRAMERATE/frequency+1)):
             frame = (magnitude
                      * sin(((tau * frequency / basic_wave.FRAMERATE) * t) + phi)
-                    )
+                     + (32767.0 * offset))
             self.assertEqual(frame, a_w.calculate_frame())
 
     def test_play(self):
@@ -96,7 +99,7 @@ class BasicWave(unittest.TestCase):
         frequency = a_w_description[0]
         phi = a_w_description[1]
         magnitude = a_w_description[2]
-        offset = phi = a_w_description[3]
+        offset = a_w_description[3]
 
         # As integer
         a_w = basic_wave.BasicWave(frequency, phi=phi, magnitude=magnitude,
@@ -118,6 +121,7 @@ class BasicWave(unittest.TestCase):
                                                            byteorder='little',
                                                            signed=True)
             self.assertEqual(frame, a_w.play(in_bytes=True))
+
 
 if __name__ == '__main__':
     unittest.main()
