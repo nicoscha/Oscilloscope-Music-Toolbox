@@ -1,7 +1,7 @@
 import logging
 from math import sin, tau
+#logging.basicConfig(level=logging.DEBUG)
 
-logging.basicConfig(level=logging.DEBUG)
 FRAMERATE = 48000
 
 
@@ -43,7 +43,7 @@ class BasicWave(object):
         if type(magnitude) is int or type(magnitude) is float:
             if magnitude > 1.0 or magnitude < -1.0:
                 logging.warning('Magnitude must be between '
-                                f'-1.0 and 1.0 is {magnitude}'
+                                f'-1.0 and 1.0 is {magnitude} '
                                 'magnitude set to the closer one.')
                 self.magnitude = 1.0 if magnitude > 1.0 else -1.0
             else:
@@ -88,6 +88,13 @@ class BasicWave(object):
         wave_description = [(self.frequency, self.phi, self.magnitude,
                              self.offset)]
         return wave_description
+
+    def calculate_frame(self):
+        frame = (self.magnitude
+                 * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
+                 )  # TODO add offset
+        self.t += 1  # TODO reset self.t to keep small to save memory
+        return frame
 
     def play(self, in_bytes=True):
         """
