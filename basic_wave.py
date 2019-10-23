@@ -5,14 +5,20 @@ from math import sin, tau
 FRAMERATE = 48000
 
 
-def _limit(signal):
+def _limit(frame):
+    """
+    Limit the input frame to the highest/lowest value allowed in a wav file
+    :param frame:
+    :return: limited frame
+    :rtype: int
+    """
     UPPER_XY_LIMIT = 32767
     LOWER_XY_LIMIT = -32767
-    if signal > UPPER_XY_LIMIT:
+    if frame > UPPER_XY_LIMIT:
         return UPPER_XY_LIMIT
-    elif signal < LOWER_XY_LIMIT:
+    elif frame < LOWER_XY_LIMIT:
         return LOWER_XY_LIMIT
-    return signal
+    return frame
 
 
 class BasicWave(object):
@@ -83,13 +89,19 @@ class BasicWave(object):
     def _wave_description(self):
         """
         Returns a list of tuples. Each tuple describes a frequency
-        :return:
+        :return: wave description
+        :rtype: list
         """
         wave_description = [(self.frequency, self.phi, self.magnitude,
                              self.offset)]
         return wave_description
 
     def calculate_frame(self):
+        """
+        Calculate one frame without self.offset as integer
+        :return: frame
+        :rtype: int
+        """
         frame = (self.magnitude
                  * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
                 )
@@ -100,7 +112,8 @@ class BasicWave(object):
         """
         Returns a wav data frame
         :param in_bytes:
-        :return:
+        :return: frame
+        :rtype: bytes, int
         """
         # Formula x = a*sin(w(t)+p) * scaling + offset
         frame = (self.magnitude
@@ -151,7 +164,8 @@ class Wave(object):
     def _wave_description(self):
         """
         Returns a list of tuples. Each tuple describes a frequency
-        :return:
+        :return: wave description
+        :rtype: list
         """
         wave_description = []
         for wave in self.frequencies:
@@ -161,7 +175,8 @@ class Wave(object):
     def play(self):
         """
         Returns a wav data frame
-        :return:
+        :return: frame
+        :rtype: bytes
         """
         frame = 0
         for basic_wave in self.frequencies:
