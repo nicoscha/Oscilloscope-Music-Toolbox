@@ -181,5 +181,8 @@ class Wave(object):
         frame = 0
         for basic_wave in self.frequencies:
             frame += basic_wave.calculate_frame()
-        frame *= 32767.0 #+ (32767.0 * self.offset)
+        offset = 0.0
+        for basic_wave in self.frequencies:
+            offset += basic_wave.offset
+        frame = frame * 32767.0 + offset * 32767.0
         return _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)

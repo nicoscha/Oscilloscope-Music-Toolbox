@@ -91,7 +91,7 @@ class BasicWave(unittest.TestCase):
         for t in range(1, int(basic_wave.FRAMERATE/frequency+1)):
             frame = (magnitude
                      * sin(((tau * frequency / basic_wave.FRAMERATE) * t) + phi)
-                     + (32767.0 * offset))
+                     )
             self.assertEqual(frame, a_w.calculate_frame())
 
     def test_play(self):
