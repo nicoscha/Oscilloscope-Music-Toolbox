@@ -177,17 +177,21 @@ class Wave(object):
             wave_description += wave._wave_description()
         return wave_description
 
-    def play(self):
-        """
-        Returns a wav data frame
-        :return: frame
-        :rtype: bytes
-        """
+    def calculate_frame(self):
         frame = 0
         for basic_wave in self.frequencies:
             frame += basic_wave.calculate_frame()
         offset = 0.0
         for basic_wave in self.frequencies:
             offset += basic_wave.offset
-        frame = frame * 32767.0 #+ offset * 32767.0
+        frame = frame * 32767.0 + offset * 32767.0
+        return frame
+
+    def play(self):
+        """
+        Returns a wav data frame
+        :return: frame
+        :rtype: bytes
+        """
+        frame = self.calculate_frame()
         return _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)

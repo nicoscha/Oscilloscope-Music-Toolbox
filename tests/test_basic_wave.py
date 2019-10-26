@@ -130,6 +130,37 @@ class Wave(unittest.TestCase):
             [(440, 0.0, 0.0, 0.0),(880, 0.0, 0.0, 0.0)])
         self.assertEqual(expected_list, sorted_list)
 
+    def test_wave_description(self):
+        ab_desc = [(493.88, 0.0, 0.5, 0.0), (440, 0.0, 0.7, 0.0)]
+        ab = basic_wave.Wave(ab_desc)
+        self.assertEqual(ab._wave_description(), ab_desc)
+
+    def test_calculate(self):
+        ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
+        ab = basic_wave.Wave(ab_desc)
+        ab_copy = basic_wave.Wave(ab_desc)
+
+        for t in range(1, int(basic_wave.FRAMERATE / ab_desc[0][0] + 1)):
+            frame = 0
+            for b_wave in ab_copy.frequencies:
+                frame += b_wave.calculate_frame()
+            offset = 0.0
+            for b_wave in ab_copy.frequencies:
+                offset += b_wave.offset
+            expected_frame = frame * 32767.0 + offset * 32767.0
+            self.assertEqual(ab.calculate_frame(), expected_frame)
+
+    def test_play(self):
+        ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
+        ab = basic_wave.Wave(ab_desc)
+        ab_copy = basic_wave.Wave(ab_desc)
+
+        for t in range(1, int(basic_wave.FRAMERATE / ab_desc[0][0] + 1)):
+            expected_play_frame = ab_copy.calculate_frame()
+            epf_bytes = basic_wave._limit(int(expected_play_frame)
+                                          ).to_bytes(2, byteorder='little',
+                                                     signed=True)
+            self.assertEqual(ab.play(), epf_bytes)
 
 
 if __name__ == '__main__':
