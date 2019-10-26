@@ -96,16 +96,15 @@ class BasicWave(object):
                              self.offset)]
         return wave_description
 
-    def calculate_frame(self):
+    def calculate_frame(self, t):
         """
         Calculate one frame without self.offset as integer
         :return: frame
         :rtype: int
         """
         frame = (self.magnitude
-                 * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
-                )
-        self.t += 1  # TODO reset self.t to keep small to save memory
+                 * sin(((tau * self.frequency / FRAMERATE) * t) + self.phi)
+                 )
         return frame
 
     def play(self, in_bytes=True):
@@ -116,10 +115,8 @@ class BasicWave(object):
         :rtype: bytes, int
         """
         # Formula x = a*sin(w(t)+p) * scaling + offset
-        frame = (self.magnitude
-                 * sin(((tau * self.frequency / FRAMERATE) * self.t) + self.phi)
+        frame = (self.calculate_frame(self.t)
                  * 32767.0 + (32767.0 * self.offset))
-
         self.t += 1  # TODO reset self.t to keep small to save memory
         b = _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)
         return b if in_bytes else frame
@@ -153,6 +150,7 @@ class Wave(object):
                     self.frequencies.append(wave)
         else:
             raise NotImplemented
+        self.t = 1
         logging.debug('Created Wave wave_description='
                       f'{self._wave_description()}')
 
@@ -180,11 +178,12 @@ class Wave(object):
     def calculate_frame(self):
         frame = 0
         for basic_wave in self.frequencies:
-            frame += basic_wave.calculate_frame()
+            frame += basic_wave.calculate_frame(t=self.t)
         offset = 0.0
         for basic_wave in self.frequencies:
             offset += basic_wave.offset
         frame = frame * 32767.0 + offset * 32767.0
+        self.t += 1
         return frame
 
     def play(self):

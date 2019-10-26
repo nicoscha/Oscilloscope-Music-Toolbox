@@ -92,7 +92,7 @@ class BasicWave(unittest.TestCase):
             frame = (magnitude
                      * sin(((tau * frequency / basic_wave.FRAMERATE) * t) + phi)
                      )
-            self.assertEqual(frame, a_w.calculate_frame())
+            self.assertEqual(frame, a_w.calculate_frame(t))
 
     def test_play(self):
         a_w_description = (440, pi / 2, 0.63, 0.87)
@@ -143,7 +143,7 @@ class Wave(unittest.TestCase):
         for t in range(1, int(basic_wave.FRAMERATE / ab_desc[0][0] + 1)):
             frame = 0
             for b_wave in ab_copy.frequencies:
-                frame += b_wave.calculate_frame()
+                frame += b_wave.calculate_frame(t)
             offset = 0.0
             for b_wave in ab_copy.frequencies:
                 offset += b_wave.offset
