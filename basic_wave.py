@@ -126,10 +126,15 @@ class BasicWave(object):
 
 
 class Wave(object):
+    @staticmethod
+    def _sort_wave_description(wave_description):
+        return sorted(wave_description,key=lambda tup: tup[0], reverse=True)
+
     def __init__(self, wave_description):
         """
         :param wave_description: tuple of f and p
         """
+        wave_description = self._sort_wave_description(wave_description)
         logging.debug(f'Creating Wave wave_description={wave_description}')
         self.frequencies = []
         if type(wave_description) is list:
@@ -184,5 +189,5 @@ class Wave(object):
         offset = 0.0
         for basic_wave in self.frequencies:
             offset += basic_wave.offset
-        frame = frame * 32767.0 + offset * 32767.0
+        frame = frame * 32767.0 #+ offset * 32767.0
         return _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)

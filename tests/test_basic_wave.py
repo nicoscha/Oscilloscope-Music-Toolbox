@@ -123,5 +123,14 @@ class BasicWave(unittest.TestCase):
             self.assertEqual(frame, a_w.play(in_bytes=True))
 
 
+class Wave(unittest.TestCase):
+    def test_sort_wave_description(self):
+        expected_list = [(880, 0.0, 0.0, 0.0),(440, 0.0, 0.0, 0.0)]
+        sorted_list = basic_wave.Wave._sort_wave_description(
+            [(440, 0.0, 0.0, 0.0),(880, 0.0, 0.0, 0.0)])
+        self.assertEqual(expected_list, sorted_list)
+
+
+
 if __name__ == '__main__':
     unittest.main()
