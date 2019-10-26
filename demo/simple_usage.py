@@ -13,10 +13,11 @@ a_p = basic_wave.BasicWave(440, phi=math.pi/2)
 with wave.open('a.wav', 'wb') as wav:
     wav.setparams((CHANNELS, SAMPLEWIDTH, FRAMERATE, NFRAMES,
                    'NONE', 'not compressed'))
-
+    frames = []
     for i in range(NFRAMES):
-        wav.writeframes(a.play())
-        wav.writeframes(a_p.play())
+        frames.append(a.play())
+        frames.append(a_p.play())
+    wav.writeframes(b''.join(frames))
 
 bc = basic_wave.Wave([(493.88, 0.0, 1.0, 0.0), (523.25, 0.0, 1.0, 0.0)])
 bc_p = basic_wave.Wave([(493.88, math.pi/2, 1.0, 0.0),
@@ -25,7 +26,8 @@ bc_p = basic_wave.Wave([(493.88, math.pi/2, 1.0, 0.0),
 with wave.open('bc.wav', 'wb') as wav:
     wav.setparams((CHANNELS, SAMPLEWIDTH, FRAMERATE, NFRAMES,
                    'NONE', 'not compressed'))
-
+    frames = []
     for i in range(NFRAMES):
-        wav.writeframes(bc.play())
-        wav.writeframes(bc_p.play())
+        frames.append(bc.play())
+        frames.append(bc_p.play())
+    wav.writeframes(b''.join(frames))
