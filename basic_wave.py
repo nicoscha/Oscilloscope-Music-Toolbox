@@ -127,9 +127,10 @@ class Wave(object):
     def _sort_wave_description(wave_description):
         return sorted(wave_description,key=lambda tup: tup[0], reverse=True)
 
-    def __init__(self, wave_description):
+    def __init__(self, wave_description, t=None):
         """
         :param wave_description: tuple of f and p
+        :param t:
         """
         wave_description = self._sort_wave_description(wave_description)
         logging.debug(f'Creating Wave wave_description={wave_description}')
@@ -150,7 +151,10 @@ class Wave(object):
                     self.frequencies.append(wave)
         else:
             raise NotImplemented
-        self.t = 1
+        if t:
+            self.t = t
+        else:
+            self.t = 1
         logging.debug('Created Wave wave_description='
                       f'{self._wave_description()}')
 
@@ -162,7 +166,8 @@ class Wave(object):
 
     def __add__(self, other):
         return Wave(wave_description=(self._wave_description() +
-                                      other._wave_description()))
+                                      other._wave_description()),
+                    t=self.t)
 
     def _wave_description(self):
         """
