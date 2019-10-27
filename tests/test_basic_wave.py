@@ -130,6 +130,21 @@ class Wave(unittest.TestCase):
             [(440, 0.0, 0.0, 0.0),(880, 0.0, 0.0, 0.0)])
         self.assertEqual(expected_list, sorted_list)
 
+    def test_init_wav_desc_not_a_list_NotImplemented(self):
+        with self.assertRaises(NotImplementedError):
+            basic_wave.Wave('No wave desc')
+
+    def test_init_wav_desc_does_not_contain_tuble_NotImplemented(self):
+        with self.assertRaises(NotImplementedError):
+            basic_wave.Wave(['No wave desc'])
+
+    def test_init_wav_desc(self):
+        ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
+        ab = basic_wave.Wave(ab_desc)
+        # Ignore order of frequencies
+        self.assertIn(*ab.frequencies[0]._wave_description(), ab_desc)
+        self.assertIn(*ab.frequencies[1]._wave_description(), ab_desc)
+
     def test_init_drop_frequencies_with_zero_magnitude(self):
         a0b_desc = [(493.88, 0.3, 0.5, 0.1), (4.82, 0.5, 0, 0.3),
                     (440, 2.0, 0.3, 0.2)]
@@ -141,7 +156,6 @@ class Wave(unittest.TestCase):
         ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
         ab = basic_wave.Wave(ab_desc, t=100)
         self.assertEqual(ab.t, 100)
-        ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
         ab = basic_wave.Wave(ab_desc)
         self.assertEqual(1, ab.t)
 

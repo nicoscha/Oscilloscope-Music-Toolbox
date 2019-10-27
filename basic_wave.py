@@ -37,7 +37,7 @@ class BasicWave(object):
             self.frequency = frequency
         else:
             raise ValueError('Frequency must be int or float not '
-                             'f{type(frequency)}')
+                             f'{type(frequency)}')
 
         if type(phi) is int or type(phi) is float:
             self.phi = phi
@@ -84,7 +84,7 @@ class BasicWave(object):
             return Wave(wave_description=(self._wave_description()
                                           + other._wave_description()))
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     def _wave_description(self):
         """
@@ -132,11 +132,11 @@ class Wave(object):
         :param wave_description: tuple of f and p
         :param t:
         """
-        wave_description = self._sort_wave_description(wave_description)
         logging.debug(f'Creating Wave wave_description={wave_description}')
         self.frequencies = []
         if type(wave_description) is list:
             if type(wave_description[0]) is tuple:
+                wave_description = self._sort_wave_description(wave_description)
                 for frequency, phi, magnitude, offset in wave_description:
                     if magnitude == 0.0:
                         logging.debug(f'Frequency {frequency}Hz with '
@@ -146,11 +146,14 @@ class Wave(object):
                                                       phi=phi,
                                                       magnitude=magnitude,
                                                       offset=offset))
-            elif type(wave_description[0] is BasicWave):
+            elif type(wave_description[0]) is BasicWave:
+                # TODO order by frequency; add test
                 for wave in wave_description:
                     self.frequencies.append(wave)
+            else:
+                raise NotImplementedError
         else:
-            raise NotImplemented
+            raise NotImplementedError
         if t:
             self.t = t
         else:
