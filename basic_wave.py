@@ -3,6 +3,8 @@ from math import sin, tau
 #logging.basicConfig(level=logging.DEBUG)
 
 FRAMERATE = 48000
+CHANNELS = 2
+SAMPLEWIDTH = 2
 
 
 def _limit(frame):
@@ -67,11 +69,8 @@ class BasicWave(object):
             else:
                 self.offset = offset
         else:
-            self.offset = 0.0
             raise ValueError('Offset must be int or float not '
-                             f'{type(offset)}={str(offset)}. '
-                             'offset set to 0.0 '
-                             f'State: {self}')
+                             f'{type(offset)}={str(offset)}. ')
         self.t = 1
         logging.debug(f'Created BasicWave {str(self)}')
 
