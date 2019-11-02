@@ -24,7 +24,7 @@ class Modifier(unittest.TestCase):
         self.assertEqual(5*basic_wave.FRAMERATE, m.duration_left)
 
     def test_init_duration_to_affect_per_sample(self):
-        # one smaple
+        # one sample
         m = basic_wave.Modifier(frequency=440)
         self.assertEqual(440, m.frequency)
         # all samples
