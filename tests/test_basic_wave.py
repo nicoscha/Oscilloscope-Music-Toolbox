@@ -150,14 +150,13 @@ class BasicWave(unittest.TestCase):
         self.assertIsInstance(a_w.play(in_bytes=False), float)
 
     def test_wave_description(self):
-        a_w_description = (440, pi/2, 0.63, 0.87)
+        a_w_description = (440, pi / 2, 0.63, 0.87)
         frequency = a_w_description[0]
         phi = a_w_description[1]
         magnitude = a_w_description[2]
         offset = a_w_description[3]
         a_w = basic_wave.BasicWave(frequency, phi=phi, magnitude=magnitude,
                                    offset=offset)
-
         self.assertEqual([a_w_description], a_w._wave_description())
 
     def test_add_modifier(self):

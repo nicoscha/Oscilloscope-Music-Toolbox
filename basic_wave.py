@@ -74,42 +74,38 @@ class BasicWave(object):
         logging.debug(f'Creating BasicWave f={frequency}Hz, p={phi}Phi, '
                       f'a={magnitude}, offset={offset}')
 
-        if type(frequency) is int or type(frequency) is float:
-            self.frequency = frequency
-        else:
+        if type(frequency) is not int and type(frequency) is not float:
             raise ValueError('Frequency must be int or float not '
                              f'{type(frequency)}')
+        self.frequency = frequency
 
-        if type(phi) is int or type(phi) is float:
-            self.phi = phi
-        else:
+        if type(phi) is not int and type(phi) is not float:
             raise ValueError('Phi must be int or float not '
-                             f'{type(phi)}={str(phi)}. Phi set to 0.0'
-                             )
+                             f'{type(phi)}={str(phi)}. Phi set to 0.0')
+        self.phi = phi
 
-        if type(magnitude) is int or type(magnitude) is float:
-            if magnitude > 1.0 or magnitude < -1.0:
-                logging.warning('Magnitude must be between '
-                                f'-1.0 and 1.0 is {magnitude} '
-                                'magnitude set to the closer one.')
-                self.magnitude = 1.0 if magnitude > 1.0 else -1.0
-            else:
-                self.magnitude = magnitude
-        else:
+        if type(magnitude) is not int and type(magnitude) is not float:
             raise ValueError('Magnitude must be int or float not '
                              f'{type(magnitude)}={str(magnitude)}. ')
-
-        if type(offset) is int or type(offset) is float:
-            if offset > 1.0 or offset < -1.0:
-                logging.warning('Offset must be between '
-                                f'-1.0 and 1.0 is {offset} '
-                                'offset set to 1.0')
-                self.offset = 0.0
-            else:
-                self.offset = offset
+        if magnitude > 1.0 or magnitude < -1.0:
+            logging.warning('Magnitude must be between '
+                            f'-1.0 and 1.0 is {magnitude} '
+                            'magnitude set to the closer one.')
+            self.magnitude = 1.0 if magnitude > 1.0 else -1.0
         else:
+            self.magnitude = magnitude
+
+        if type(offset) is not int and type(offset) is not float:
             raise ValueError('Offset must be int or float not '
                              f'{type(offset)}={str(offset)}. ')
+        if offset > 1.0 or offset < -1.0:
+            logging.warning('Offset must be between '
+                            f'-1.0 and 1.0 is {offset} '
+                            'offset set to 1.0')
+            self.offset = 0.0
+        else:
+            self.offset = offset
+
         self.t = 1
         self.modifiers = set()
         if list_of_modifiers:
