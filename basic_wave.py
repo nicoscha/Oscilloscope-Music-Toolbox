@@ -1,10 +1,11 @@
 import logging
 from math import sin, tau
+from typing import Final
 #logging.basicConfig(level=logging.DEBUG)
 
-FRAMERATE = 48000
-CHANNELS = 2
-SAMPLEWIDTH = 2
+FRAMERATE: Final = 48000
+CHANNELS: Final = 2
+SAMPLEWIDTH: Final = 2
 
 
 def _limit(frame):
@@ -138,9 +139,7 @@ class Wave(object):
                 wave_description = self._sort_wave_description(wave_description)
                 for frequency, phi, magnitude, offset in wave_description:
                     if magnitude == 0.0:
-                        logging.debug(f'Frequency {frequency}Hz with '
-                                      'magnitude of 0.0 skipped')
-                        continue
+                        logging.info(f'{frequency=}Hz with magnitude of 0.0')
                     self.frequencies.append(BasicWave(frequency=frequency,
                                                       phi=phi,
                                                       magnitude=magnitude,
