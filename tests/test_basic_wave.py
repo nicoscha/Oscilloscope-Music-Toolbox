@@ -145,13 +145,6 @@ class Wave(unittest.TestCase):
         self.assertIn(*ab.frequencies[0]._wave_description(), ab_desc)
         self.assertIn(*ab.frequencies[1]._wave_description(), ab_desc)
 
-    def test_init_drop_frequencies_with_zero_magnitude(self):
-        a0b_desc = [(493.88, 0.3, 0.5, 0.1), (4.82, 0.5, 0, 0.3),
-                    (440, 2.0, 0.3, 0.2)]
-        a0b = basic_wave.Wave(a0b_desc)
-        ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
-        self.assertEqual(ab_desc, a0b._wave_description())
-
     def test_init_t_value(self):
         ab_desc = [(493.88, 0.3, 0.5, 0.1), (440, 2.0, 0.3, 0.2)]
         ab = basic_wave.Wave(ab_desc, t=100)
