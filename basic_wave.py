@@ -24,8 +24,46 @@ def _limit(frame):
     return frame
 
 
+class Modifier:
+    __slots__ = ('frequency', 'phi', 'magnitude', 'offset', 'affected_sample',
+                 'duration_left', 'swap')
+
+    def __init__(self, frequency=None, phi=None, magnitude=None, offset=None,
+                 start=None, duration=None, swap=False):
+        if duration and swap:
+            raise NotImplementedError
+
+        if duration == -1:  # Affect all samples
+            divisor = FRAMERATE
+            self.duration_left = -1
+        elif duration is None:  # One sample
+            divisor = 1
+            self.duration_left = 1
+        else:  # Given amount of seconds in samples
+            divisor = duration * FRAMERATE
+            self.duration_left = duration * FRAMERATE
+
+        if start is not None:
+            self.affected_sample = start * FRAMERATE
+        else:
+            self.affected_sample = 1
+
+        if swap:
+            self.frequency = frequency
+            self.phi = phi
+            self.magnitude = magnitude
+            self.offset = offset
+        else:
+            self.frequency = frequency / divisor if frequency else None
+            self.phi = phi / divisor if phi else None
+            self.magnitude = magnitude / divisor if magnitude else None
+            self.offset = offset / divisor if offset else None
+        self.swap = swap
+
+
 class BasicWave(object):
-    def __init__(self, frequency, phi=0.0, magnitude=1.0, offset=0.0):
+    def __init__(self, frequency, phi=0.0, magnitude=1.0, offset=0.0,
+                 list_of_modifiers=None):
         """
 
         :param frequency: Hz
@@ -73,6 +111,14 @@ class BasicWave(object):
             raise ValueError('Offset must be int or float not '
                              f'{type(offset)}={str(offset)}. ')
         self.t = 1
+        self.modifiers = set()
+        if list_of_modifiers:
+            if type(list_of_modifiers) is not list:
+                raise ValueError('list_of_modifiers must be list not '
+                                 f'{type(list_of_modifiers)}='
+                                 f'{str(list_of_modifiers)}. ')
+            for mod in list_of_modifiers:
+                self.add_modifier(mod)
         logging.debug(f'Created BasicWave {str(self)}')
 
     def __str__(self):
@@ -85,6 +131,34 @@ class BasicWave(object):
                                           + other._wave_description()))
         else:
             raise NotImplementedError
+
+    def add_modifier(self, modifier):
+        self.modifiers.add(modifier)
+
+    def _modify(self, t):
+        for mod in self.modifiers:
+            affect = t >= mod.affected_sample and mod.duration_left > 0
+            if affect or mod.duration_left == -1:
+                if mod.swap:
+                    if mod.frequency is not None:
+                        self.frequency = mod.frequency
+                    if mod.phi is not None:
+                        self.phi = mod.phi
+                    if mod.magnitude is not None:
+                        self.magnitude = mod.magnitude
+                    if mod.offset is not None:
+                        self.offset = mod.offset
+                else:
+                    if mod.frequency:
+                        self.frequency += mod.frequency
+                    if mod.phi:
+                        self.phi += mod.phi
+                    if mod.magnitude:
+                        self.magnitude += mod.magnitude
+                    if mod.offset:
+                        self.offset += mod.offset
+                mod.duration_left -= 1
+                # TODO Remove mod with duration_left == 0
 
     def _wave_description(self):
         """
@@ -105,6 +179,7 @@ class BasicWave(object):
         frame = (self.magnitude
                  * sin(((tau * self.frequency / FRAMERATE) * t) + self.phi)
                  )
+        self._modify(t)
         return frame
 
     def play(self, in_bytes=True):
@@ -134,28 +209,33 @@ class Wave(object):
         """
         logging.debug(f'Creating Wave wave_description={wave_description}')
         self.frequencies = []
-        if type(wave_description) is list:
-            if type(wave_description[0]) is tuple:
-                wave_description = self._sort_wave_description(wave_description)
-                for frequency, phi, magnitude, offset in wave_description:
-                    if magnitude == 0.0:
-                        logging.info(f'{frequency=}Hz with magnitude of 0.0')
-                    self.frequencies.append(BasicWave(frequency=frequency,
-                                                      phi=phi,
-                                                      magnitude=magnitude,
-                                                      offset=offset))
-            elif type(wave_description[0]) is BasicWave:
-                # TODO order by frequency; add test
-                for wave in wave_description:
-                    self.frequencies.append(wave)
-            else:
-                raise NotImplementedError
-        else:
+        if type(wave_description) is not list:
             raise NotImplementedError
-        if t:
-            self.t = t
+        if type(wave_description[0]) is not tuple:
+            raise NotImplementedError
+        if type(wave_description[0]) is BasicWave:
+            # TODO order by frequency; add test
+            for wave in wave_description:
+                self.frequencies.append(wave)
         else:
-            self.t = 1
+            descriptions = self._sort_wave_description(wave_description)
+            for description in descriptions:
+                frequency = description[0]
+                phi = description[1]
+                magnitude = description[2]
+                offset = description[3]
+                modifiers = description[4] if len(description) == 5 else None
+                if magnitude == 0.0:
+                    logging.info(f'{frequency=}Hz with magnitude of 0.0')
+                self.frequencies.append(BasicWave(frequency=frequency,
+                                                  phi=phi,
+                                                  magnitude=magnitude,
+                                                  offset=offset))
+                if modifiers:
+                    for mod in modifiers:
+                        self.frequencies[-1].add_modifier(mod)
+
+        self.t = t if t else 1
         logging.debug('Created Wave wave_description='
                       f'{self._wave_description()}')
 
