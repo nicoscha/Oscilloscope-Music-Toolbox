@@ -1,5 +1,6 @@
 import logging
 from math import sin, tau
+from cmath import rect, polar, phase
 from typing import Final
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -8,15 +9,19 @@ CHANNELS: Final = 2
 SAMPLEWIDTH: Final = 2
 
 
-def _limit(frame):
+def _limit(frame, clip=None):
     """
     Limit the input frame to the highest/lowest value allowed in a wav file
     :param frame:
     :return: limited frame
     :rtype: int
     """
-    UPPER_XY_LIMIT = 32767
-    LOWER_XY_LIMIT = -32767
+    if clip is None:
+        UPPER_XY_LIMIT = 32767
+        LOWER_XY_LIMIT = -32767
+    else:
+        UPPER_XY_LIMIT = int(32767 * clip)
+        LOWER_XY_LIMIT = int(-32767 * clip)
     if frame > UPPER_XY_LIMIT:
         return UPPER_XY_LIMIT
     elif frame < LOWER_XY_LIMIT:
@@ -26,10 +31,10 @@ def _limit(frame):
 
 class Modifier:
     __slots__ = ('frequency', 'phi', 'magnitude', 'offset', 'affected_sample',
-                 'duration_left', 'swap')
+                 'duration_left', 'swap', 'clip')
 
     def __init__(self, frequency=None, phi=None, magnitude=None, offset=None,
-                 start=None, duration=None, swap=False):
+                 start=None, duration=None, swap=False, clip=None, t_modifier=1.0):
         if duration and swap:
             raise NotImplementedError
 
@@ -46,7 +51,7 @@ class Modifier:
         if start is not None:
             self.affected_sample = start * FRAMERATE
         else:
-            self.affected_sample = 1
+            self.affected_sample = 0
 
         if swap:
             self.frequency = frequency
@@ -58,12 +63,24 @@ class Modifier:
             self.phi = phi / divisor if phi else None
             self.magnitude = magnitude / divisor if magnitude else None
             self.offset = offset / divisor if offset else None
+
+        if clip is not None:
+            if clip > 1.0 or clip < 0.0:
+                raise ValueError
+        self.clip = clip
         self.swap = swap
+
+    def __repr__(self):
+        return (f'frequency={self.frequency}, phi={self.phi}, '
+                f'magnitude={self.magnitude}, offset={self.offset}, '
+                f'self.duration_left={self.duration_left}, '
+                f'affected_sample={self.affected_sample}, swap={self.swap}, '
+                f'clip={self.clip}')
 
 
 class BasicWave(object):
     def __init__(self, frequency, phi=0.0, magnitude=1.0, offset=0.0,
-                 list_of_modifiers=None):
+                 list_of_modifiers=None, t_modifier=1):
         """
 
         :param frequency: Hz
@@ -72,7 +89,7 @@ class BasicWave(object):
         :param offset: DC offset
         """
         logging.debug(f'Creating BasicWave f={frequency}Hz, p={phi}Phi, '
-                      f'a={magnitude}, offset={offset}')
+                      f'a={magnitude}, offset={offset}, t_modifier={t_modifier}')
 
         if type(frequency) is not int and type(frequency) is not float:
             raise ValueError('Frequency must be int or float not '
@@ -106,8 +123,10 @@ class BasicWave(object):
         else:
             self.offset = offset
 
-        self.t = 1
+        self.t = 0
+        self.t_modifier = t_modifier
         self.modifiers = set()
+        self.clip = None
         if list_of_modifiers:
             if type(list_of_modifiers) is not list:
                 raise ValueError('list_of_modifiers must be list not '
@@ -117,9 +136,13 @@ class BasicWave(object):
                 self.add_modifier(mod)
         logging.debug(f'Created BasicWave {str(self)}')
 
+        phi_per_t = (tau / FRAMERATE) * self.frequency * t_modifier
+        self.c = rect(magnitude, phi)
+        self.c_t = rect(1, phi_per_t)
+
     def __str__(self):
-        for f, p, a, o in self._wave_description():
-            return f'f={f}Hz, p={p}Phi, a={a}, offset={o}; '
+        for f, p, a, o, mods ,tm in self._wave_description():
+            return f'f={f}Hz, p={p}Phi, a={a}, offset={o}; mods={mods}; t_modifier={tm};'
 
     def __add__(self, other):
         if isinstance(other, BasicWave) or isinstance(other, Wave):
@@ -138,21 +161,38 @@ class BasicWave(object):
                 if mod.swap:
                     if mod.frequency is not None:
                         self.frequency = mod.frequency
+                        phi_per_t = (tau / FRAMERATE) * self.frequency * self.t_modifier
+                        print(polar(self.c_t))
+                        self.c_t = rect(1, phi_per_t)
+                        mod.frequency = None
+
                     if mod.phi is not None:
                         self.phi = mod.phi
+                        self.c = rect(abs(self.c), mod.phi)
+                        mod.phi = None
                     if mod.magnitude is not None:
                         self.magnitude = mod.magnitude
+                        self.c = rect(self.magnitude, phase(self.c))
+                        mod.magnitude = None
                     if mod.offset is not None:
                         self.offset = mod.offset
+                        mod.offset = None
+                    mod.swap = False
                 else:
                     if mod.frequency:
                         self.frequency += mod.frequency
+                        phi_per_t = (tau / FRAMERATE) * self.frequency * self.t_modifier
+                        self.c_t = rect(1, phi_per_t)
                     if mod.phi:
                         self.phi += mod.phi
+                        self.c = rect(abs(self.c), mod.phi)
                     if mod.magnitude:
                         self.magnitude += mod.magnitude
+                        self.c = rect(self.magnitude, phase(self.c))
                     if mod.offset:
                         self.offset += mod.offset
+                if mod.clip is not None:
+                    self.clip = mod.clip
                 mod.duration_left -= 1
                 # TODO Remove mod with duration_left == 0
 
@@ -163,7 +203,7 @@ class BasicWave(object):
         :rtype: list
         """
         wave_description = [(self.frequency, self.phi, self.magnitude,
-                             self.offset)]
+                             self.offset, [], self.t_modifier)]
         return wave_description
 
     def calculate_frame(self, t):
@@ -172,11 +212,10 @@ class BasicWave(object):
         :return: frame
         :rtype: int
         """
-        frame = (self.magnitude
-                 * sin(((tau * self.frequency / FRAMERATE) * t) + self.phi)
-                 )
+        frame_ = self.c * self.c_t
+        self.c = frame_
         self._modify(t)
-        return frame
+        return frame_.real
 
     def play(self, in_bytes=True):
         """
@@ -189,14 +228,14 @@ class BasicWave(object):
         frame = (self.calculate_frame(self.t)
                  * 32767.0 + (32767.0 * self.offset))
         self.t += 1  # TODO reset self.t to keep small to save memory
-        b = _limit(int(frame)).to_bytes(2, byteorder='little', signed=True)
+        b = _limit(int(frame), self.clip).to_bytes(2, byteorder='little', signed=True)
         return b if in_bytes else frame
 
 
 class Wave(object):
     @staticmethod
     def _sort_wave_description(wave_description):
-        return sorted(wave_description,key=lambda tup: tup[0], reverse=True)
+        return sorted(wave_description, key=lambda tup: tup[0], reverse=True)
 
     def __init__(self, wave_description, t=None):
         """
@@ -220,18 +259,20 @@ class Wave(object):
                 phi = description[1]
                 magnitude = description[2]
                 offset = description[3]
-                modifiers = description[4] if len(description) == 5 else None
+                modifiers = description[4] if len(description) >= 5 else None
+                t_modifier = description[5] if len(description) >= 6 else 1.0
                 if magnitude == 0.0:
                     logging.info(f'{frequency=}Hz with magnitude of 0.0')
                 self.frequencies.append(BasicWave(frequency=frequency,
                                                   phi=phi,
                                                   magnitude=magnitude,
-                                                  offset=offset))
+                                                  offset=offset,
+                                                  t_modifier=t_modifier))
                 if modifiers:
                     for mod in modifiers:
                         self.frequencies[-1].add_modifier(mod)
 
-        self.t = t if t else 1
+        self.t = t if t else 0
         logging.debug('Created Wave wave_description='
                       f'{self._wave_description()}')
 
@@ -245,6 +286,11 @@ class Wave(object):
         return Wave(wave_description=(self._wave_description() +
                                       other._wave_description()),
                     t=self.t)
+
+    @classmethod
+    def from_desc(cls, frequency=0.0, phi=0.0, magnitude=1.0, offset=0.0,
+                  t=None):
+        return cls([(frequency, phi, magnitude, offset)], t)
 
     def _wave_description(self):
         """
