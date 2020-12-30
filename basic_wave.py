@@ -79,7 +79,7 @@ class Modifier:
 
 
 class BasicWave(object):
-    def __init__(self, frequency, phi=0.0, magnitude=1.0, offset=0.0,
+    def __init__(self, frequency: float, phi=0.0, magnitude=1.0, offset=0.0,
                  list_of_modifiers=None, t_modifier=1):
         """
 
@@ -141,7 +141,7 @@ class BasicWave(object):
         self.c_t = rect(1, phi_per_t)
 
     def __str__(self):
-        for f, p, a, o, mods ,tm in self._wave_description():
+        for f, p, a, o, mods, tm in self._wave_description():
             return f'f={f}Hz, p={p}Phi, a={a}, offset={o}; mods={mods}; t_modifier={tm};'
 
     def __add__(self, other):
@@ -151,10 +151,11 @@ class BasicWave(object):
         else:
             raise NotImplementedError
 
-    def add_modifier(self, modifier):
+    def add_modifier(self, modifier: Modifier):
         self.modifiers.add(modifier)
 
-    def _modify(self, t):
+    def _modify(self, t: int):
+        drop_modifier = False
         for mod in self.modifiers:
             affect = t >= mod.affected_sample and mod.duration_left > 0
             if affect or mod.duration_left == -1:
@@ -165,7 +166,6 @@ class BasicWave(object):
                         print(polar(self.c_t))
                         self.c_t = rect(1, phi_per_t)
                         mod.frequency = None
-
                     if mod.phi is not None:
                         self.phi = mod.phi
                         self.c = rect(abs(self.c), mod.phi)
@@ -193,8 +193,14 @@ class BasicWave(object):
                         self.offset += mod.offset
                 if mod.clip is not None:
                     self.clip = mod.clip
+
                 mod.duration_left -= 1
-                # TODO Remove mod with duration_left == 0
+
+                if mod.duration_left == 0:
+                    drop_modifier = True
+
+        if drop_modifier:
+            self.modifiers = set([x for x in self.modifiers if x.duration_left != 0])
 
     def _wave_description(self):
         """
@@ -206,7 +212,7 @@ class BasicWave(object):
                              self.offset, [], self.t_modifier)]
         return wave_description
 
-    def calculate_frame(self, t):
+    def calculate_frame(self, t: int):
         """
         Calculate one frame without self.offset as integer
         :return: frame
