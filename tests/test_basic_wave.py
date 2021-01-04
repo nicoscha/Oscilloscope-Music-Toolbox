@@ -116,7 +116,7 @@ class BasicWave(unittest.TestCase):
 
     def test_init_modifier_ValueError(self):
         with self.assertRaises(ValueError):
-            basic_wave.BasicWave(440, list_of_modifiers='not a modifier')
+            basic_wave.BasicWave(440, modifiers='not a modifier')
 
     def test_init_modifier_value(self):
         # continues
@@ -147,7 +147,7 @@ class BasicWave(unittest.TestCase):
         a_w = basic_wave.BasicWave(440)
         self.assertIsInstance(a_w.play(), bytes)
         a_w = basic_wave.BasicWave(440)
-        self.assertIsInstance(a_w.play(in_bytes=False), float)
+        self.assertNotIsInstance(a_w.play(in_bytes=False), bytes)
 
     def test_wave_description(self):
         a_w_description = (440, pi / 2, 0.63, 0.87, [], 0.123)

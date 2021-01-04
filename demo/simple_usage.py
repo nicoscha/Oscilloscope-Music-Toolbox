@@ -4,7 +4,7 @@ import basic_wave
 
 CHANNELS = 2
 SAMPLEWIDTH = 2
-FRAMERATE = 48000
+FRAMERATE = 44100
 NFRAMES = 5*FRAMERATE
 
 a = basic_wave.BasicWave(440)
