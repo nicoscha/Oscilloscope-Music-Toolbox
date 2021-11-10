@@ -17,20 +17,36 @@ def in_bytes(signal):
     return int(_limit(signal)).to_bytes(2, byteorder='little', signed=True)
 
 
-def scale(signal: List[float], factor: float) -> List[float]:
-    return [_ * factor for _ in signal]
+def scale(signal: List[float], factor: float, to_int: bool = False) -> List[float]:
+    if to_int:
+        return [int(_ * factor) for _ in signal]
+    else:
+        return [_ * factor for _ in signal]
 
 
-def add(signal_1: List[float], signal_2: List[float]) -> List[float]:
+def add(signal_1: List[float], signal_2: List[float], factor_1: float = 1.0, factor_2: float = 1.0, to_int: bool = False) -> List[float]:
     if len(signal_1) != len(signal_2):
         warnings.warn('Signals have different length')
-    return [_1 + _2 for (_1, _2) in zip(signal_1, signal_2)]
+    if to_int:
+        if factor_1 == 1.0 or factor_2 == 1.0:
+            sig = [int(_1 + _2) for (_1, _2) in zip(signal_1, signal_2)]
+        else:
+            sig = [int(_1 * factor_1 + _2 * factor_2) for (_1, _2) in zip(signal_1, signal_2)]
+    else:
+        if factor_1 == 1.0 or factor_2 == 1.0:
+            sig = [_1 + _2 for (_1, _2) in zip(signal_1, signal_2)]
+        else:
+            sig = [_1 * factor_1 + _2 * factor_2 for (_1, _2) in zip(signal_1, signal_2)]
+    return sig
 
 
-def multiply(signal_1: List[float], signal_2: List[float]) -> List[float]:
+def multiply(signal_1: List[float], signal_2: List[float], to_int: bool = False) -> List[float]:
     if len(signal_1) != len(signal_2):
         warnings.warn('Signals have different length')
-    return [_1 * _2 for (_1, _2) in zip(signal_1, signal_2)]
+    if to_int:
+        return [int(_1 * _2) for (_1, _2) in zip(signal_1, signal_2)]
+    else:
+        return [_1 * _2 for (_1, _2) in zip(signal_1, signal_2)]
 
 
 def gen_sin(frequency: int, sample_rate: int, duration: int) -> List:
@@ -69,6 +85,7 @@ def gen_sawtooth(frequency: int, sample_rate: int, duration: int) -> List:
     samples = [(i % len_wave) / len_wave for i in range_samples]
     samples = [2 * s - 1 for s in samples]  # Scale from 0..1 to 1..-1
     return samples
+
 
 def gen_triangle(frequency: int, sample_rate: int, duration: int) -> List:
     """
