@@ -1,6 +1,7 @@
 from typing import List
 from math import cos, sin, pi
 import warnings
+import wave
 
 
 def _limit(signal):
@@ -106,3 +107,32 @@ def gen_triangle(frequency: int, sample_rate: int, duration: int) -> List:
         samples.append(sample)
     samples = [2 * s - 1 for s in samples]  # Scale from 0..1 to 1..-1
     return samples
+
+
+def gen_rectangle(frequency: int, sample_rate: int, duration: int) -> List:
+    """
+    :param frequency: Frequency in Hz
+    :param sample_rate: Samples pre second
+    :param duration: Duration in samples
+    :return: List of samples
+    """
+    range_samples = range(duration)
+    len_wave = (1 / frequency) * sample_rate
+    samples = [1 if (i % len_wave) >= len_wave / 2 else - 1 for i in range_samples]
+    return samples
+
+
+def write(x_frames: List, y_frames: List, CHANNELS: int=2, SAMPLEWIDTH: int=2, SAMPLE_RATE=48000):
+    print(f'len x {len(x_frames)} len y {len(y_frames)}')
+    n_frames = len(x_frames)
+    frames = []
+    for i in range(n_frames):
+        x_frame = 32767 * x_frames[i]
+        frames.append(int(x_frame).to_bytes(2, byteorder='little', signed=True))
+        y_frame = 32767 * y_frames[i]
+        frames.append(int(y_frame).to_bytes(2, byteorder='little', signed=True))
+
+    with wave.open('gen2.wav', 'wb') as wav:
+        wav.setparams((CHANNELS, SAMPLEWIDTH, SAMPLE_RATE,
+                       n_frames, 'NONE', 'not compressed'))
+        wav.writeframes(b''.join(frames))
