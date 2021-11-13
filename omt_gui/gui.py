@@ -5,6 +5,7 @@ from PyQt5.QtGui import QStandardItemModel
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDateEdit, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QStackedWidget, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
 from collections import namedtuple
+import csv
 
 from uuid import uuid4
 from omt_utils import gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, offset, write, scale, multiply
@@ -15,35 +16,76 @@ parameter = namedtuple('parameter', 'amplitude function frequency offset side le
 parameters = {}
 
 
+def show_load_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
+    """
+    Show a file dialog to select a file.
+    Sets the focus back to the main window, if focus_root is set to a parent widget.
+    :param focus_root: QWidget to set focus to
+    :return: Path as string
+    """
+    w = QFileDialog()
+    w.setFileMode(QFileDialog.ExistingFile)
+    local_path = __file__.replace('gui.py', '')
+    file_path, _ = w.getOpenFileName(caption='Open File',
+                                     filter="CSV File (*.csv)",
+                                     directory=local_path)
+    # Set focus back to root when called from outside
+    if focus_root:
+        focus_root.activateWindow()
+    # Check path and create db
+    return file_path
+
+
+def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
+    """
+    Show a file dialog to select a file.
+    Sets the focus back to the main window, if focus_root is set to a parent widget.
+    :param focus_root: QWidget to set focus to
+    :return: Path as string
+    """
+    w = QFileDialog()
+    w.setFileMode(QFileDialog.ExistingFile)
+    local_path = __file__.replace('gui.py', '')
+    file_path, _ = w.getSaveFileName(caption='Open File',
+                                     filter="CSV File (*.csv)",
+                                     directory=local_path)
+    # Set focus back to root when called from outside
+    if focus_root:
+        focus_root.activateWindow()
+    # Check path and create db
+    return file_path
 
 
 class Selector(QHBoxLayout):
-    def build(self, uu: str, side: str) -> None:
+    def build(self, uu: str, side: str, signal=None, amplitude=1.0,
+              frequency=400, offset=0) -> None:
         self.uu = uu
         self.side = side
 
         self.amplitude_spin_box = QDoubleSpinBox()
         self.amplitude_spin_box.setMaximum(10)
         self.amplitude_spin_box.setSingleStep(0.1)
-        self.amplitude_spin_box.setValue(1.0)
+        self.amplitude_spin_box.setValue(amplitude)
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
         self.combo_box.addItems(['sin', 'cos', 'saw', 'tri', 'rec'])
-        if side == 'x':
+        if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
+        if signal:
+            self.combo_box.setCurrentText(signal)
         self.combo_box.currentTextChanged.connect(self.update_parameters)
 
         self.frequency_spin_box = QDoubleSpinBox()
         self.frequency_spin_box.setRange(0, SAMPLE_RATE/2)
         self.frequency_spin_box.setSingleStep(0.02)
-        self.frequency_spin_box.setValue(400)
+        self.frequency_spin_box.setValue(frequency)
         self.frequency_spin_box.valueChanged.connect(self.update_parameters)
 
         self.offset_spin_box = QDoubleSpinBox()
         self.offset_spin_box.setRange(-1, 1)
         self.offset_spin_box.setSingleStep(0.02)
-        self.offset_spin_box.setValue(0)
+        self.offset_spin_box.setValue(offset)
         self.offset_spin_box.valueChanged.connect(self.update_parameters)
 
         self.update_parameters()
@@ -58,11 +100,18 @@ class Selector(QHBoxLayout):
         function = self.combo_box.currentText()
         frequency = self.frequency_spin_box.value()
         offset = self.offset_spin_box.value()
-        p = parameter(amplitude=amplitude, function=function,
+        self.parameter = parameter(amplitude=amplitude, function=function,
                       frequency=frequency, offset=offset, side=self.side,
                       level=0, head_uu=None)
-        parameters[self.uu] = p
-        print(parameters[self.uu])
+        parameters[self.uu] = self.parameter
+        #print(parameters[self.uu])
+
+    def remove(self) -> None:
+        self.amplitude_spin_box.deleteLater()
+        self.combo_box.deleteLater()
+        self.frequency_spin_box.deleteLater()
+        self.offset_spin_box.deleteLater()
+        del parameters[self.uu]
 
 
 gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
@@ -100,7 +149,7 @@ def calc():
 
 
 class XYLayout(QVBoxLayout):
-    def build(self, side) -> None:
+    def build(self, side, default_selector=True) -> None:
         self.side = side
 
         add_button = QPushButton()
@@ -112,37 +161,100 @@ class XYLayout(QVBoxLayout):
 
         self.addWidget(add_button)
         self.addWidget(label)
-        self.add_selector()
+        if default_selector:
+            self.add_selector()
 
-    def add_selector(self) -> None:
-        selector = Selector()
-        uu = uuid4()
-        selector.build(uu, side=self.side)
-        self.addLayout(selector)
+    def add_selector(self, selector=None) -> None:
+        if selector:
+            _selector = selector
+        else:
+            _selector = Selector()
+            uu = uuid4()
+            _selector.build(uu, side=self.side)
+        self.addLayout(_selector)
+
+    def remove_selector(self, uu) -> None:
+        for child in self.findChildren(Selector):
+            if child.uu == uu:
+                child.remove()
+                child.deleteLater()
 
 
-def build_gui() -> QWidget:
-    """
-    Build the gui and connect all signals and slots
-    :return: QWidget containing the gui
-    """
+class GUI(QWidget):
+    def build(self):
+        """
+        Build the gui and connect all signals and slots
+        """
 
-    # Start button
-    start_button = QPushButton()
-    start_button.setText('Start')
-    start_button.clicked.connect(calc)
+        load_button = QPushButton()
+        load_button.setText('Load')
+        load_button.clicked.connect(self.load)
 
-    # Add layouts to main widget
-    main_h_box = QHBoxLayout()
-    x_layout = XYLayout()
-    x_layout.build('x')
-    y_layout = XYLayout()
-    y_layout.build('y')
-    main_h_box.addLayout(x_layout)
-    main_h_box.addLayout(y_layout)
-    main_h_box.addWidget(start_button)
+        save_button = QPushButton()
+        save_button.setText('Save')
+        save_button.clicked.connect(self.save)
 
-    main_widget = QWidget()
-    main_widget.setLayout(main_h_box)
+        start_button = QPushButton()
+        start_button.setText('Start')
+        start_button.clicked.connect(calc)
 
-    return main_widget
+        control_layout = QVBoxLayout()
+        control_layout.addWidget(load_button)
+        control_layout.addWidget(save_button)
+        control_layout.addWidget(start_button)
+
+        # Add layouts to main widget
+        main_h_box = QHBoxLayout()
+        self.x_layout = XYLayout()
+        self.x_layout.build('x')
+        self.y_layout = XYLayout()
+        self.y_layout.build('y')
+        main_h_box.addLayout(self.x_layout)
+        main_h_box.addLayout(self.y_layout)
+        main_h_box.addLayout(control_layout)
+
+        self.setLayout(main_h_box)
+
+    def load(self):
+        file_path = show_load_file_pop_up()
+        if not file_path:
+            return None
+
+        # clear x and y layout
+        for selector in self.x_layout.findChildren(Selector):
+            self.x_layout.remove_selector(selector.uu)
+        for selector in self.y_layout.findChildren(Selector):
+            self.y_layout.remove_selector(selector.uu)
+
+        with open(file_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for description in reader:
+                uu = description['uu']
+                side = description['side']
+                amplitude = float(description['amplitude'])
+                frequency = float(description['frequency'])
+                signal = description['function']
+                offset = float(description['offset'])
+
+                s = Selector()
+                s.build(uu=uu, side=side, signal=signal, amplitude=amplitude,
+                        frequency=frequency, offset=offset)
+
+                if description['side'] == 'x':
+                    self.x_layout.add_selector(selector=s)
+                elif description['side'] == 'y':
+                    self.y_layout.add_selector(selector=s)
+
+    def save(self):
+        file_path = show_save_file_pop_up()
+        if not file_path:
+            return None
+
+        with open(file_path, 'w') as file:
+            print(parameters)
+            writer = csv.writer(file)
+            writer.writerow(('amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'head_uu', 'uu'))
+            for uu, p in parameters.items():
+                data = [p.amplitude, p.function, p.frequency, p.offset, p.side,
+                        p.level, p.head_uu, uu]
+                writer.writerow(data)

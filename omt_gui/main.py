@@ -4,7 +4,7 @@ path.append(__file__.replace('\\main.py', ''))
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 
-from gui import build_gui
+from gui import GUI
 
 
 def launch_app() -> None:
@@ -16,7 +16,8 @@ def launch_app() -> None:
     #icon_path = __file__.replace('main.py', 'gui\\icons\\256.png')
     #app.setWindowIcon(QIcon(icon_path))
 
-    root = build_gui()
+    root = GUI()
+    root.build()
 
     root.setWindowTitle('OMT-GUI')
     #root.setMinimumSize(1600, 900)
