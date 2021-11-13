@@ -3,6 +3,8 @@ from typing import List, Final
 from math import cos, sin, pi, sqrt
 from omt_utils import gen_cos, gen_sin, gen_sawtooth, add, scale, multiply
 
+from time import  time
+t1 = time()
 SAMPLE_RATE: Final = 192000#48000
 CHANNELS: Final = 2
 SAMPLEWIDTH: Final = 2
@@ -26,22 +28,28 @@ def write(x_frames, y_frames):
 
 
 N_SAMPLES = 480000*5
-#
+#####
 signal_1 = gen_sin(1000, SAMPLE_RATE, int(N_SAMPLES/2))
 signal_1_1 = [int(32767 * (i * 0.3 - 0.5)) for i in signal_1]
 signal_1_2 = [int(32767 * (i * 0.3 + 0.5)) for i in signal_1]
 #signal_1_ = [s1 if i % (1/1000* (SAMPLE_RATE * 2)) >= (1/1000* SAMPLE_RATE) else s2 for (i, (s1, s2)) in enumerate(zip(signal_1_1, signal_1_2))]
 saw_1 = gen_sin(50.5, SAMPLE_RATE, N_SAMPLES)
 signal_1_ = [int(x1*x2) for (x1, x2) in zip(signal_1_1, saw_1)]
+
+signal_1_ = [int(_ * ((i % SAMPLE_RATE)/SAMPLE_RATE)) for (i, _) in enumerate(signal_1_)]
 b_signal_1 = [i.to_bytes(2, byteorder='little', signed=True) for i in signal_1_]
 
 sinx = gen_sin(8000, SAMPLE_RATE, N_SAMPLES)
 cosy = gen_cos(1000, SAMPLE_RATE, N_SAMPLES)
 saw = gen_sawtooth(int(50), SAMPLE_RATE, N_SAMPLES)
-signal_2 = [(0.3*x1 + 0.7*x2) for (x1, x2) in zip(cosy, saw)]
-signal_2 = [int(32767 * (1*x2)) for (x1, x2) in zip(sinx, signal_2)]
+signal_2 = add(cosy, saw, 0.3, 0.7)
+signal_2 = scale(signal_2, 32767, True)
+#signal_2 = [int(32767 * (1*x2)) for (x1, x2) in zip(sinx, signal_2)]
+
+signal_2 = [int(_ * ((i % SAMPLE_RATE)/SAMPLE_RATE)) for (i, _) in enumerate(signal_2)]
 b_signal_2 = [i.to_bytes(2, byteorder='little', signed=True) for i in signal_2]
 write(b_signal_1, b_signal_2)
+print(time()-t1)
 exit()
 ###
 coeff = fft.fft(signal_1)

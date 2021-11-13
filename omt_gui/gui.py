@@ -10,9 +10,9 @@ import csv
 from uuid import uuid4
 from omt_utils import gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, offset, write, scale, multiply
 
-SAMPLE_RATE = 48000
-SAMPLES = 48000*5
-parameter = namedtuple('parameter', 'amplitude function frequency offset side level head_uu')
+SAMPLE_RATE = 192000
+SAMPLES = SAMPLE_RATE*5
+parameter = namedtuple('parameter', 'operator amplitude function frequency offset side level head_uu')
 parameters = {}
 
 
@@ -57,10 +57,14 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 
 
 class Selector(QHBoxLayout):
-    def build(self, uu: str, side: str, signal=None, amplitude=1.0,
+    def build(self, uu: str, side: str, signal=None, operator='+', amplitude=1.0,
               frequency=400, offset=0) -> None:
         self.uu = uu
         self.side = side
+
+        self.operator_combo_box = QComboBox()
+        self.operator_combo_box.addItems(['+', '*'])
+        self.operator_combo_box.setCurrentText(operator)
 
         self.amplitude_spin_box = QDoubleSpinBox()
         self.amplitude_spin_box.setMaximum(10)
@@ -90,23 +94,26 @@ class Selector(QHBoxLayout):
 
         self.update_parameters()
 
+        self.addWidget(self.operator_combo_box)
         self.addWidget(self.amplitude_spin_box)
         self.addWidget(self.combo_box)
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
 
     def update_parameters(self) -> None:
+        operator = self.operator_combo_box.currentText()
         amplitude = self.amplitude_spin_box.value()
         function = self.combo_box.currentText()
         frequency = self.frequency_spin_box.value()
         offset = self.offset_spin_box.value()
-        self.parameter = parameter(amplitude=amplitude, function=function,
+        self.parameter = parameter(operator=operator, amplitude=amplitude, function=function,
                       frequency=frequency, offset=offset, side=self.side,
                       level=0, head_uu=None)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
 
     def remove(self) -> None:
+        self.operator_combo_box.deleteLater()
         self.amplitude_spin_box.deleteLater()
         self.combo_box.deleteLater()
         self.frequency_spin_box.deleteLater()
@@ -231,14 +238,15 @@ class GUI(QWidget):
             for description in reader:
                 uu = description['uu']
                 side = description['side']
+                operator = description['operator']
                 amplitude = float(description['amplitude'])
                 frequency = float(description['frequency'])
                 signal = description['function']
                 offset = float(description['offset'])
 
                 s = Selector()
-                s.build(uu=uu, side=side, signal=signal, amplitude=amplitude,
-                        frequency=frequency, offset=offset)
+                s.build(uu=uu, side=side, signal=signal, operator=operator,
+                        amplitude=amplitude, frequency=frequency, offset=offset)
 
                 if description['side'] == 'x':
                     self.x_layout.add_selector(selector=s)
@@ -253,7 +261,7 @@ class GUI(QWidget):
         with open(file_path, 'w') as file:
             print(parameters)
             writer = csv.writer(file)
-            writer.writerow(('amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'head_uu', 'uu'))
+            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'head_uu', 'uu'))
             for uu, p in parameters.items():
                 data = [p.amplitude, p.function, p.frequency, p.offset, p.side,
                         p.level, p.head_uu, uu]
