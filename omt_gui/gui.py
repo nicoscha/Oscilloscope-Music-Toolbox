@@ -236,6 +236,7 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
 def calc():
     x_samples = []
     y_samples = []
+    '''
     x_signals = {}
     y_signals = {}
     for uu, param in parameters.items():
@@ -254,10 +255,9 @@ def calc():
             x_signals[uu] = samples
         elif param.side == 'y':
             y_signals[uu] = samples
+    '''
 
-    # Apply operation
-    c_parameters = parameters.copy()
-
+    '''
     print(c_parameters)
     uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'x'][0]
     x_samples = x_signals[uu]
@@ -266,25 +266,9 @@ def calc():
     uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'y'][0]
     y_samples = y_signals[uu]
     del c_parameters[uu]
+    '''
 
-    while len(c_parameters) > 0:
-        print('while', c_parameters)
-        # signals without hierarchy aka. top level signals
-        for uu, p in [(uu, p) for p in c_parameters.items() if p.hierarchy == None]:
-            # first signal
 
-            # second signal
-            if p.operation == '+' and p.side == 'x':
-                x_samples = add(x_samples, x_signals[uu])
-            elif p.operation == '*' and p.side == 'x':
-                x_samples = multiply(x_samples, x_signals[uu])
-            elif p.operation == '+' and p.side == 'y':
-                y_samples = add(y_samples, y_signals[uu])
-            elif p.operation == '*' and p.side == 'y':
-                y_samples = multiply(y_samples, y_signals[uu])
-            del c_parameters[uu]
-            print(len(x_samples), x_samples)
-    """    
     for param in parameters.values():
         f = param.frequency
         # Signal
@@ -308,7 +292,7 @@ def calc():
                 y_samples = multiply(y_samples, samples)
             else:
                 y_samples = samples
-    """
+
     write(x_samples, y_samples, SAMPLE_RATE=SAMPLE_RATE)
     print('calc done')
 
@@ -354,8 +338,8 @@ class XYLayout(QVBoxLayout):
                 _parameters.append((uu, parameters[uu]))
                 self.remove_selector(uu)
         from pprint import pprint
+
         # Order selectors
-        new_h = []
         changed_selector = [(uu, param) for uu, param in _parameters if isinstance(param.hierarchy, tuple)]
         changed_selector = changed_selector[0]
         change = changed_selector[1].hierarchy[1]
@@ -371,8 +355,9 @@ class XYLayout(QVBoxLayout):
                 elif old_index == new_index:
                     new_h[old_index - change] = (uu, param)
             else:
-                new_param = param._replace(hierarchy=(new_index))
+                new_param = param._replace(hierarchy=new_index)
                 new_h[new_index] = (uu, new_param)
+
         # Build new selectors
         for (uu, param) in new_h:
             (operator, amplitude, signal, frequency, offset, side, level, hierarchy) = param
