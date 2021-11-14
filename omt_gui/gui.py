@@ -1,6 +1,6 @@
 from datetime import date as dt_date
 from functools import partial
-from PyQt5.QtCore import QDate, Qt
+from PyQt5.QtCore import QDate, Qt, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDateEdit, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QStackedWidget, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
@@ -12,7 +12,7 @@ from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rec
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
-parameter = namedtuple('parameter', 'operator amplitude function frequency offset side level head_uu')
+parameter = namedtuple('parameter', 'operator amplitude function frequency offset side level hierarchy')
 parameters = {}
 
 
@@ -57,6 +57,8 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 
 
 class HierarchyButtons(QVBoxLayout):
+    hierarchy_changed = pyqtSignal()
+
     def build(self, uu):
         self.uu = uu
         self.setSpacing(0)
@@ -74,10 +76,18 @@ class HierarchyButtons(QVBoxLayout):
         self.addWidget(self.hierarchy_down)
 
     def up_clicked(self):
-        pass
+        hierarchy = parameters[self.uu].hierarchy
+        if hierarchy > 0:
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=(hierarchy, -1))
+            self.hierarchy_changed.emit()
 
     def down_clicked(self):
-        pass
+        hierarchy = parameters[self.uu].hierarchy
+        own_side = parameters[self.uu].side
+        current_max = max([p.hierarchy for p in parameters.values() if p.side == own_side])
+        if hierarchy < current_max:  # Arbitrary limit
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=(hierarchy, +1))
+            self.hierarchy_changed.emit()
 
     def remove(self):
         self.hierarchy_up.deleteLater()
@@ -85,6 +95,9 @@ class HierarchyButtons(QVBoxLayout):
 
 
 class LevelButtons(QHBoxLayout):
+    level_changed = pyqtSignal()
+    hierarchy_changed = pyqtSignal()
+
     def build(self, uu):
         self.uu = uu
         self.setSpacing(0)
@@ -102,15 +115,19 @@ class LevelButtons(QHBoxLayout):
         self.addLayout(self.hierarchy_buttons)
         self.addWidget(self.level_down)
 
+        self.hierarchy_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
+
     def up_clicked(self):
         if parameters[self.uu].level > 0:
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level - 1)
+            self.level_changed.emit()
 
     def down_clicked(self):
         if parameters[self.uu].level <= 10:  # Arbitrary limit
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
+            self.level_changed.emit()
 
     def remove(self):
         self.level_up.deleteLater()
@@ -122,11 +139,22 @@ class LevelButtons(QHBoxLayout):
 
 
 class Selector(QHBoxLayout):
+    hierarchy_changed = pyqtSignal()
+
     def build(self, uu: str, side: str, signal=None, operator='+', amplitude=1.0,
-              frequency=400, offset=0, head_uu=None) -> None:
+              frequency=400, offset=0, hierarchy=None) -> None:
         self.uu = uu
         self.side = side
-        self.head_uu = head_uu
+        if hierarchy:
+            self.hierarchy = hierarchy
+        else:
+            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values() if _.side == self.side]
+            if hierarchies_on_this_side:
+                self.hierarchy = max(hierarchies_on_this_side) + 1
+            else:
+                self.hierarchy = 0
+
+        self.spacer = QSpacerItem(0, 0, vPolicy=QSizePolicy.Maximum)
 
         self.level_buttons = LevelButtons()
         self.level_buttons.build(self.uu)
@@ -162,7 +190,10 @@ class Selector(QHBoxLayout):
         self.offset_spin_box.valueChanged.connect(self.update_parameters)
 
         self.update_parameters()
+        self.level_buttons.level_changed.connect(self.update_spacer)
+        self.level_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
 
+        self.addSpacerItem(self.spacer)
         self.addLayout(self.level_buttons)
         self.addWidget(self.operator_combo_box)
         self.addWidget(self.amplitude_spin_box)
@@ -177,14 +208,19 @@ class Selector(QHBoxLayout):
         frequency = self.frequency_spin_box.value()
         offset = self.offset_spin_box.value()
         self.parameter = parameter(operator=operator, amplitude=amplitude, function=function,
-                      frequency=frequency, offset=offset, side=self.side,
-                      level=0, head_uu=self.head_uu)
+                                   frequency=frequency, offset=offset, side=self.side,
+                                   level=0, hierarchy=self.hierarchy)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
+
+    def update_spacer(self):
+        self.spacer.changeSize(50 * parameters[self.uu].level, 0)
+        self.invalidate()
 
     def remove(self) -> None:
         self.level_buttons.remove()
         self.level_buttons.deleteLater()
+
         self.operator_combo_box.deleteLater()
         self.amplitude_spin_box.deleteLater()
         self.combo_box.deleteLater()
@@ -200,6 +236,55 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
 def calc():
     x_samples = []
     y_samples = []
+    x_signals = {}
+    y_signals = {}
+    for uu, param in parameters.items():
+        f = param.frequency
+        # Signal
+        signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
+        # Amplitude
+        if param.amplitude != 1.0:
+            samples = scale(signal, param.amplitude)
+        else:
+            samples = signal
+        # Offset
+        if param.offset != 0:
+            samples = offset(samples, param.offset)
+        if param.side == 'x':
+            x_signals[uu] = samples
+        elif param.side == 'y':
+            y_signals[uu] = samples
+
+    # Apply operation
+    c_parameters = parameters.copy()
+
+    print(c_parameters)
+    uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'x'][0]
+    x_samples = x_signals[uu]
+    del c_parameters[uu]
+
+    uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'y'][0]
+    y_samples = y_signals[uu]
+    del c_parameters[uu]
+
+    while len(c_parameters) > 0:
+        print('while', c_parameters)
+        # signals without hierarchy aka. top level signals
+        for uu, p in [(uu, p) for p in c_parameters.items() if p.hierarchy == None]:
+            # first signal
+
+            # second signal
+            if p.operation == '+' and p.side == 'x':
+                x_samples = add(x_samples, x_signals[uu])
+            elif p.operation == '*' and p.side == 'x':
+                x_samples = multiply(x_samples, x_signals[uu])
+            elif p.operation == '+' and p.side == 'y':
+                y_samples = add(y_samples, y_signals[uu])
+            elif p.operation == '*' and p.side == 'y':
+                y_samples = multiply(y_samples, y_signals[uu])
+            del c_parameters[uu]
+            print(len(x_samples), x_samples)
+    """    
     for param in parameters.values():
         f = param.frequency
         # Signal
@@ -223,6 +308,7 @@ def calc():
                 y_samples = multiply(y_samples, samples)
             else:
                 y_samples = samples
+    """
     write(x_samples, y_samples, SAMPLE_RATE=SAMPLE_RATE)
     print('calc done')
 
@@ -250,6 +336,7 @@ class XYLayout(QVBoxLayout):
             _selector = Selector()
             uu = uuid4()
             _selector.build(uu, side=self.side)
+        _selector.hierarchy_changed.connect(self.update_order)
         self.addLayout(_selector)
 
     def remove_selector(self, uu) -> None:
@@ -257,6 +344,44 @@ class XYLayout(QVBoxLayout):
             if child.uu == uu:
                 child.remove()
                 child.deleteLater()
+
+    def update_order(self):
+        c_parameters = parameters.copy()
+        # Remove all selectors on this side
+        _parameters = []
+        for uu in c_parameters:
+            if c_parameters[uu].side == self.side:
+                _parameters.append((uu, parameters[uu]))
+                self.remove_selector(uu)
+        from pprint import pprint
+        # Order selectors
+        new_h = []
+        changed_selector = [(uu, param) for uu, param in _parameters if isinstance(param.hierarchy, tuple)]
+        changed_selector = changed_selector[0]
+        change = changed_selector[1].hierarchy[1]
+        new_index = sum(changed_selector[1].hierarchy)
+        new_h = [None] * len(_parameters)
+        for uu, param in _parameters:
+            if (uu, param) != changed_selector:
+                old_index = param.hierarchy
+                if old_index < new_index:
+                    new_h[old_index] = (uu, param)
+                elif old_index > new_index:
+                    new_h[old_index] = (uu, param)
+                elif old_index == new_index:
+                    new_h[old_index - change] = (uu, param)
+            else:
+                new_param = param._replace(hierarchy=(new_index))
+                new_h[new_index] = (uu, new_param)
+        # Build new selectors
+        for (uu, param) in new_h:
+            (operator, amplitude, signal, frequency, offset, side, level, hierarchy) = param
+
+            s = Selector()
+            s.build(uu=uu, side=side, signal=signal, operator=operator,
+                    amplitude=amplitude, frequency=frequency, offset=offset)
+
+            self.add_selector(selector=s)
 
 
 class GUI(QWidget):
@@ -333,8 +458,8 @@ class GUI(QWidget):
         with open(file_path, 'w') as file:
             print(parameters)
             writer = csv.writer(file)
-            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'head_uu', 'uu'))
+            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'hierarchy', 'uu'))
             for uu, p in parameters.items():
-                data = [p.amplitude, p.function, p.frequency, p.offset, p.side,
-                        p.level, p.head_uu, uu]
+                data = [p.operator, p.amplitude, p.function, p.frequency, p.offset, p.side,
+                        p.level, p.hierarchy, uu]
                 writer.writerow(data)
