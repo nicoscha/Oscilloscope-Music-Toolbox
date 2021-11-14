@@ -8,7 +8,7 @@ from collections import namedtuple
 import csv
 
 from uuid import uuid4
-from omt_utils import gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, offset, write, scale, multiply
+from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, offset, write, scale, multiply
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
@@ -56,11 +56,80 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
     return file_path
 
 
+class HierarchyButtons(QVBoxLayout):
+    def build(self, uu):
+        self.uu = uu
+        self.setSpacing(0)
+
+        self.hierarchy_up = QPushButton('⯅')
+        self.hierarchy_up.setMaximumWidth(15)
+        self.hierarchy_up.setMaximumHeight(15)
+        self.hierarchy_up.clicked.connect(self.up_clicked)
+        self.hierarchy_down = QPushButton('⯆')
+        self.hierarchy_down.setMaximumWidth(15)
+        self.hierarchy_down.setMaximumHeight(15)
+        self.hierarchy_down.clicked.connect(self.down_clicked)
+
+        self.addWidget(self.hierarchy_up)
+        self.addWidget(self.hierarchy_down)
+
+    def up_clicked(self):
+        pass
+
+    def down_clicked(self):
+        pass
+
+    def remove(self):
+        self.hierarchy_up.deleteLater()
+        self.hierarchy_down.deleteLater()
+
+
+class LevelButtons(QHBoxLayout):
+    def build(self, uu):
+        self.uu = uu
+        self.setSpacing(0)
+
+        self.level_up = QPushButton('⯇')
+        self.level_up.setMaximumWidth(15)
+        self.level_up.clicked.connect(self.up_clicked)
+        self.level_down= QPushButton('⯈')
+        self.level_down.setMaximumWidth(15)
+        self.level_down.clicked.connect(self.down_clicked)
+        self.hierarchy_buttons = HierarchyButtons()
+        self.hierarchy_buttons.build(self.uu)
+
+        self.addWidget(self.level_up)
+        self.addLayout(self.hierarchy_buttons)
+        self.addWidget(self.level_down)
+
+    def up_clicked(self):
+        if parameters[self.uu].level > 0:
+            level = parameters[self.uu].level
+            parameters[self.uu] = parameters[self.uu]._replace(level=level - 1)
+
+    def down_clicked(self):
+        if parameters[self.uu].level <= 10:  # Arbitrary limit
+            level = parameters[self.uu].level
+            parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
+
+    def remove(self):
+        self.level_up.deleteLater()
+
+        self.hierarchy_buttons.remove()
+        self.hierarchy_buttons.deleteLater()
+
+        self.level_down.deleteLater()
+
+
 class Selector(QHBoxLayout):
     def build(self, uu: str, side: str, signal=None, operator='+', amplitude=1.0,
-              frequency=400, offset=0) -> None:
+              frequency=400, offset=0, head_uu=None) -> None:
         self.uu = uu
         self.side = side
+        self.head_uu = head_uu
+
+        self.level_buttons = LevelButtons()
+        self.level_buttons.build(self.uu)
 
         self.operator_combo_box = QComboBox()
         self.operator_combo_box.addItems(['+', '*'])
@@ -94,6 +163,7 @@ class Selector(QHBoxLayout):
 
         self.update_parameters()
 
+        self.addLayout(self.level_buttons)
         self.addWidget(self.operator_combo_box)
         self.addWidget(self.amplitude_spin_box)
         self.addWidget(self.combo_box)
@@ -108,11 +178,13 @@ class Selector(QHBoxLayout):
         offset = self.offset_spin_box.value()
         self.parameter = parameter(operator=operator, amplitude=amplitude, function=function,
                       frequency=frequency, offset=offset, side=self.side,
-                      level=0, head_uu=None)
+                      level=0, head_uu=self.head_uu)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
 
     def remove(self) -> None:
+        self.level_buttons.remove()
+        self.level_buttons.deleteLater()
         self.operator_combo_box.deleteLater()
         self.amplitude_spin_box.deleteLater()
         self.combo_box.deleteLater()
@@ -164,7 +236,7 @@ class XYLayout(QVBoxLayout):
         add_button.clicked.connect(self.add_selector)
 
         label = QLabel()
-        label.setText('   Amp         Function       f in Hz            Offset')
+        label.setText('\tOperation  Amplitue  Function       f in Hz            Offset')
 
         self.addWidget(add_button)
         self.addWidget(label)
