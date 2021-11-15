@@ -1,3 +1,4 @@
+import math
 from datetime import date as dt_date
 from functools import partial
 from PyQt5.QtCore import QDate, Qt, pyqtSignal
@@ -124,7 +125,7 @@ class LevelButtons(QHBoxLayout):
             self.level_changed.emit()
 
     def down_clicked(self):
-        if parameters[self.uu].level <= 10:  # Arbitrary limit
+        if parameters[self.uu].level <= 0:  # Arbitrary limit
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
             self.level_changed.emit()
@@ -172,7 +173,7 @@ class Selector(QHBoxLayout):
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
-        self.combo_box.addItems(['sin', 'cos', 'saw', 'tri', 'rec', 'comp'])
+        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comp'))
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
         else:
@@ -244,12 +245,16 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
 
 
 def calc():
+    print('calc start')
     x_samples = []
     y_samples = []
-    '''
-    x_signals = {}
-    y_signals = {}
+
+    raw_x_signals = {}
+    raw_y_signals = {}
+    raw_signals = {}
     for uu, param in parameters.items():
+        if param.function == 'comp':
+            continue
         f = param.frequency
         # Signal
         signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
@@ -262,10 +267,78 @@ def calc():
         if param.offset != 0:
             samples = offset(samples, param.offset)
         if param.side == 'x':
-            x_signals[uu] = samples
+            raw_x_signals[uu] = samples
         elif param.side == 'y':
-            y_signals[uu] = samples
+            raw_y_signals[uu] = samples
+        raw_signals[uu] = samples
     '''
+    sorted_uu_params = sorted(parameters.items(), key=lambda _: _[1].hierarchy)
+    for side in ['x', 'y']:
+        selector_sorted_by_hierarchy = [(uu, param) for uu, param in sorted_uu_params if param.side == side]
+        selector_sorted_by_hierarchy.reverse()
+        len_sel_sort = len(selector_sorted_by_hierarchy)
+        t_signal = []
+        comp_signals = []
+        if len(selector_sorted_by_hierarchy) == 1:
+            comp_signals.append(('+', raw_signals[selector_sorted_by_hierarchy[0][0]]))
+        for i, (uu, param) in enumerate(selector_sorted_by_hierarchy[:-1]):
+            print(uu, param, side)
+            operator = param.operator
+            hierarchy = param.hierarchy
+            next_param = selector_sorted_by_hierarchy[i + 1][1]
+            # Only one signal in comp
+            if next_param.function != 'comp' and param.level == next_param.level:
+                # combine signals
+                signal_1 = raw_signals[uu]
+                next_uu = selector_sorted_by_hierarchy[i + 1][0]
+                signal_2 = raw_signals[next_uu]
+                if operator == '+':
+                    t_signal = add(signal_1, signal_2)
+                elif operator == '*':
+                    t_signal = multiply(signal_1, signal_2)
+            elif next_param.function != 'comp' and param.level != next_param.level:
+                print('Next param diff level', hierarchy)
+                comp_signals.append((operator, raw_signals[uu]))
+            if selector_sorted_by_hierarchy[i][1].function == 'comp':
+                comp_signals.append((operator, t_signal))
+        print(comp_signals)
+        t_signal = comp_signals[0]
+        for i, (operator, signal_1) in enumerate(comp_signals[1:]):
+            if operator == '+':
+                t_signal = add(signal_1, t_signal)
+            elif operator == '*':
+                t_signal = multiply(signal_1, t_signal)
+        if side == 'x':
+            x_samples = t_signal
+        elif side == 'y':
+            y_samples = t_signal
+    '''
+    """
+    from pprint import pprint
+    for side in ['x', 'y']:
+        hierarchy = 0
+        start_hierarchy = 0
+        end_hierarchy = 0
+        paths = []
+        highest_level = max([p.level for p in parameters.values() if p.side == side])
+        print('highest_level', highest_level)
+        all_selectors = [p for p in parameters.values() if p.side == side]
+        for i, s in enumerate(all_selectors):
+            try:
+                print(s)
+                if s.level > all_selectors[i + 1].level:  # next selector is on a higher level
+                    end_hierarchy = i + 1
+                    paths.append((start_hierarchy, end_hierarchy))
+                    start_hierarchy = end_hierarchy
+            except IndexError as E:
+                if i + 2 > len(all_selectors):
+                    end_hierarchy = i
+                    paths.append((start_hierarchy, end_hierarchy))
+                else:
+                    raise E
+        pprint(paths)
+        
+    """
 
     '''
     print(c_parameters)
@@ -277,7 +350,6 @@ def calc():
     y_samples = y_signals[uu]
     del c_parameters[uu]
     '''
-
 
     for param in parameters.values():
         if param.function == 'comp':
@@ -381,6 +453,20 @@ class XYLayout(QVBoxLayout):
             self.add_selector(selector=s)
 
 
+def set_sample_rate(sample_rate_str: str) -> None:
+    global SAMPLE_RATE
+    SAMPLE_RATE = int(sample_rate_str.replace('k Hz', ''))
+
+
+def set_samples(samples_str: str) -> None:
+    global SAMPLES
+    if samples_str == 'calc lcm':
+        SAMPLES = int(SAMPLE_RATE / math.lcm(*[int(p.frequency) for p in parameters.values()]))
+        print('lcm of', SAMPLES, 'samples')
+    else:
+        SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
+
+
 class GUI(QWidget):
     def build(self):
         """
@@ -395,26 +481,38 @@ class GUI(QWidget):
         save_button.setText('Save')
         save_button.clicked.connect(self.save)
 
+        sample_rate = QComboBox()
+        sample_rate.addItems(('192k Hz', '96k Hz', '48k Hz', '44.1k Hz'))
+        sample_rate.currentTextChanged.connect(set_sample_rate)
+
+        duration = QComboBox()
+        duration.addItems(('5s', '10s', '1s', 'calc lcm'))
+        duration.currentTextChanged.connect(set_samples)
+
         start_button = QPushButton()
         start_button.setText('Start')
         start_button.clicked.connect(calc)
 
-        control_layout = QVBoxLayout()
+        control_layout = QHBoxLayout()
         control_layout.addWidget(load_button)
         control_layout.addWidget(save_button)
+        control_layout.addWidget(sample_rate)
+        control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
 
         # Add layouts to main widget
-        main_h_box = QHBoxLayout()
+        self.main_h_box = QVBoxLayout()
         self.x_layout = XYLayout()
         self.x_layout.build('x')
         self.y_layout = XYLayout()
         self.y_layout.build('y')
-        main_h_box.addLayout(self.x_layout)
-        main_h_box.addLayout(self.y_layout)
-        main_h_box.addLayout(control_layout)
+        self.x_y_layout = QHBoxLayout()
+        self.x_y_layout.addLayout(self.x_layout)
+        self.x_y_layout.addLayout(self.y_layout)
+        self.main_h_box.addLayout(self.x_y_layout)
+        self.main_h_box.addLayout(control_layout)
 
-        self.setLayout(main_h_box)
+        self.setLayout(self.main_h_box)
 
     def load(self):
         file_path = show_load_file_pop_up()
