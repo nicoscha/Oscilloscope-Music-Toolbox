@@ -141,10 +141,12 @@ class LevelButtons(QHBoxLayout):
 class Selector(QHBoxLayout):
     hierarchy_changed = pyqtSignal()
 
-    def build(self, uu: str, side: str, signal=None, operator='+', amplitude=1.0,
-              frequency=400, offset=0, hierarchy=None) -> None:
+    def build(self, uu: str, side: str, signal=None, operator='+', amplitude: float = 1.0,
+              frequency: float = 400, offset: float = 0.0, level:int = 0, hierarchy=None) -> None:
         self.uu = uu
         self.side = side
+
+        self.level = level
         if hierarchy:
             self.hierarchy = hierarchy
         else:
@@ -170,10 +172,10 @@ class Selector(QHBoxLayout):
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
-        self.combo_box.addItems(['sin', 'cos', 'saw', 'tri', 'rec'])
+        self.combo_box.addItems(['sin', 'cos', 'saw', 'tri', 'rec', 'comp'])
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
-        if signal:
+        else:
             self.combo_box.setCurrentText(signal)
         self.combo_box.currentTextChanged.connect(self.update_parameters)
 
@@ -182,6 +184,8 @@ class Selector(QHBoxLayout):
         self.frequency_spin_box.setSingleStep(0.02)
         self.frequency_spin_box.setValue(frequency)
         self.frequency_spin_box.valueChanged.connect(self.update_parameters)
+        if signal == 'comp':
+            self.frequency_spin_box.setEnabled(False)
 
         self.offset_spin_box = QDoubleSpinBox()
         self.offset_spin_box.setRange(-1, 1)
@@ -204,12 +208,18 @@ class Selector(QHBoxLayout):
     def update_parameters(self) -> None:
         operator = self.operator_combo_box.currentText()
         amplitude = self.amplitude_spin_box.value()
-        function = self.combo_box.currentText()
+        signal = self.combo_box.currentText()
         frequency = self.frequency_spin_box.value()
         offset = self.offset_spin_box.value()
-        self.parameter = parameter(operator=operator, amplitude=amplitude, function=function,
+
+        if signal == 'comp':
+            self.frequency_spin_box.setEnabled(False)
+        else:
+            self.frequency_spin_box.setEnabled(True)
+
+        self.parameter = parameter(operator=operator, amplitude=amplitude, function=signal,
                                    frequency=frequency, offset=offset, side=self.side,
-                                   level=0, hierarchy=self.hierarchy)
+                                   level=self.level, hierarchy=self.hierarchy)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
 
@@ -270,6 +280,8 @@ def calc():
 
 
     for param in parameters.values():
+        if param.function == 'comp':
+            continue
         f = param.frequency
         # Signal
         signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
@@ -425,10 +437,13 @@ class GUI(QWidget):
                 frequency = float(description['frequency'])
                 signal = description['function']
                 offset = float(description['offset'])
+                level = int(description['level'])
+                hierarchy = int(description['hierarchy'])
 
                 s = Selector()
                 s.build(uu=uu, side=side, signal=signal, operator=operator,
-                        amplitude=amplitude, frequency=frequency, offset=offset)
+                        amplitude=amplitude, frequency=frequency, offset=offset,
+                        level=level, hierarchy=hierarchy)
 
                 if description['side'] == 'x':
                     self.x_layout.add_selector(selector=s)
