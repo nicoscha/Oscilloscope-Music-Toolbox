@@ -125,7 +125,7 @@ class LevelButtons(QHBoxLayout):
             self.level_changed.emit()
 
     def down_clicked(self):
-        if parameters[self.uu].level <= 0:  # Arbitrary limit
+        if parameters[self.uu].level <= 5:  # Arbitrary limit
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
             self.level_changed.emit()
@@ -173,7 +173,7 @@ class Selector(QHBoxLayout):
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
-        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comp'))
+        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb'))
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
         else:
@@ -185,7 +185,7 @@ class Selector(QHBoxLayout):
         self.frequency_spin_box.setSingleStep(0.02)
         self.frequency_spin_box.setValue(frequency)
         self.frequency_spin_box.valueChanged.connect(self.update_parameters)
-        if signal == 'comp':
+        if signal == 'comb':
             self.frequency_spin_box.setEnabled(False)
 
         self.offset_spin_box = QDoubleSpinBox()
@@ -213,7 +213,7 @@ class Selector(QHBoxLayout):
         frequency = self.frequency_spin_box.value()
         offset = self.offset_spin_box.value()
 
-        if signal == 'comp':
+        if signal == 'comb':
             self.frequency_spin_box.setEnabled(False)
         else:
             self.frequency_spin_box.setEnabled(True)
@@ -225,7 +225,8 @@ class Selector(QHBoxLayout):
         #print(parameters[self.uu])
 
     def update_spacer(self):
-        self.spacer.changeSize(50 * parameters[self.uu].level, 0)
+        self.level = parameters[self.uu].level
+        self.spacer.changeSize(50 * self.level, 0)
         self.invalidate()
 
     def remove(self) -> None:
@@ -253,7 +254,7 @@ def calc():
     raw_y_signals = {}
     raw_signals = {}
     for uu, param in parameters.items():
-        if param.function == 'comp':
+        if param.function == 'comb':
             continue
         f = param.frequency
         # Signal
@@ -287,7 +288,7 @@ def calc():
             hierarchy = param.hierarchy
             next_param = selector_sorted_by_hierarchy[i + 1][1]
             # Only one signal in comp
-            if next_param.function != 'comp' and param.level == next_param.level:
+            if next_param.function != 'comb' and param.level == next_param.level:
                 # combine signals
                 signal_1 = raw_signals[uu]
                 next_uu = selector_sorted_by_hierarchy[i + 1][0]
@@ -296,10 +297,10 @@ def calc():
                     t_signal = add(signal_1, signal_2)
                 elif operator == '*':
                     t_signal = multiply(signal_1, signal_2)
-            elif next_param.function != 'comp' and param.level != next_param.level:
+            elif next_param.function != 'comb' and param.level != next_param.level:
                 print('Next param diff level', hierarchy)
                 comp_signals.append((operator, raw_signals[uu]))
-            if selector_sorted_by_hierarchy[i][1].function == 'comp':
+            if selector_sorted_by_hierarchy[i][1].function == 'comb':
                 comp_signals.append((operator, t_signal))
         print(comp_signals)
         t_signal = comp_signals[0]
@@ -352,7 +353,7 @@ def calc():
     '''
 
     for param in parameters.values():
-        if param.function == 'comp':
+        if param.function == 'comb':
             continue
         f = param.frequency
         # Signal
@@ -402,7 +403,7 @@ class XYLayout(QVBoxLayout):
             _selector = selector
         else:
             _selector = Selector()
-            uu = uuid4()
+            uu = str(uuid4())
             _selector.build(uu, side=self.side)
         _selector.hierarchy_changed.connect(self.update_order)
         self.addLayout(_selector)
@@ -448,7 +449,8 @@ class XYLayout(QVBoxLayout):
 
             s = Selector()
             s.build(uu=uu, side=side, signal=signal, operator=operator,
-                    amplitude=amplitude, frequency=frequency, offset=offset)
+                    amplitude=amplitude, frequency=frequency, offset=offset,
+                    level=level, hierarchy=hierarchy)
 
             self.add_selector(selector=s)
 
