@@ -377,7 +377,7 @@ def calc():
             else:
                 y_samples = samples
 
-    write(x_samples, y_samples, SAMPLE_RATE=SAMPLE_RATE)
+    write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
     print('calc done')
 
 

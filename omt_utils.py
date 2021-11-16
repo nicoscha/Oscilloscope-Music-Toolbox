@@ -1,4 +1,4 @@
-from typing import List
+from typing import Union, List
 from math import cos, sin, pi
 import warnings
 import wave
@@ -126,7 +126,7 @@ def gen_rectangle(frequency: int, sample_rate: int, duration: int) -> List:
     return samples
 
 
-def write(x_frames: List, y_frames: List, CHANNELS: int=2, SAMPLEWIDTH: int=2, SAMPLE_RATE=48000):
+def write(x_frames: List, y_frames: List, channels: int = 2, sample_width: int = 2, sample_rate = 48000):
     print(f'len x {len(x_frames)} len y {len(y_frames)}')
     n_frames = len(x_frames)
     frames = []
@@ -137,6 +137,34 @@ def write(x_frames: List, y_frames: List, CHANNELS: int=2, SAMPLEWIDTH: int=2, S
         frames.append(int(y_frame).to_bytes(2, byteorder='little', signed=True))
 
     with wave.open('gen2.wav', 'wb') as wav:
-        wav.setparams((CHANNELS, SAMPLEWIDTH, SAMPLE_RATE,
+        wav.setparams((channels, sample_width, sample_rate,
                        n_frames, 'NONE', 'not compressed'))
         wav.writeframes(b''.join(frames))
+
+
+def read(file_path: str,) -> Union[List, tuple[List, List]]:
+    # one channel, two bytes sample width
+    with wave.open(file_path, 'rb') as wav:
+        sample_rate = wav.getframerate()
+        n_frames = wav.getnframes()
+        raw_data = wav.readframes(n_frames)
+        data = []
+        # Convert bytes to integers
+        data = [int.from_bytes(raw_data[i:i + 2], byteorder='little', signed=True) for i in range(0, len(raw_data), 2)]
+        if n_frames == 2:
+            data = ([s for i, s in enumerate(data) if i % 2 == 0],
+                    [s for i, s in enumerate(data) if i % 2 == 1])
+        return sample_rate, data
+
+
+def normalize_signal(signal: Union[List, tuple]):
+    if isinstance(signal, tuple):  # 2 channels
+        max_1 = max(signal[0])
+        max_2 = max(signal[1])
+        _max = max(max_1, max_2)
+        factor = 1 / _max
+        return scale(signal[0], factor=factor), scale(signal[1], factor=factor)
+    elif isinstance(signal, List):
+        _max = max(signal)
+        factor = 1 / _max
+        return scale(signal, factor=factor)
