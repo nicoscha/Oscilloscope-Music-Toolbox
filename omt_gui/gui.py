@@ -142,8 +142,8 @@ class LevelButtons(QHBoxLayout):
 class Selector(QHBoxLayout):
     hierarchy_changed = pyqtSignal()
 
-    def build(self, uu: str, side: str, signal=None, operator='+', amplitude: float = 1.0,
-              frequency: float = 400, offset: float = 0.0, level:int = 0, hierarchy=None) -> None:
+    def build(self, uu: str, side: str, signal=None, operator='*', amplitude: float = 1.0,
+              frequency: float = 400, offset: float = 0.0, level: int = 0, hierarchy=None) -> None:
         self.uu = uu
         self.side = side
 
@@ -163,8 +163,9 @@ class Selector(QHBoxLayout):
         self.level_buttons.build(self.uu)
 
         self.operator_combo_box = QComboBox()
-        self.operator_combo_box.addItems(['+', '*'])
+        self.operator_combo_box.addItems(['*', '+'])
         self.operator_combo_box.setCurrentText(operator)
+        self.operator_combo_box.currentTextChanged.connect(self.update_parameters)
 
         self.amplitude_spin_box = QDoubleSpinBox()
         self.amplitude_spin_box.setMaximum(10)
@@ -206,12 +207,14 @@ class Selector(QHBoxLayout):
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
 
+        self.update_spacer()
+
     def update_parameters(self) -> None:
         operator = self.operator_combo_box.currentText()
-        amplitude = self.amplitude_spin_box.value()
+        amplitude = round(self.amplitude_spin_box.value(), 2)
         signal = self.combo_box.currentText()
         frequency = self.frequency_spin_box.value()
-        offset = self.offset_spin_box.value()
+        offset = round(self.offset_spin_box.value(), 2)
 
         if signal == 'comb':
             self.frequency_spin_box.setEnabled(False)
@@ -272,113 +275,88 @@ def calc():
         elif param.side == 'y':
             raw_y_signals[uu] = samples
         raw_signals[uu] = samples
-    '''
-    sorted_uu_params = sorted(parameters.items(), key=lambda _: _[1].hierarchy)
+
     for side in ['x', 'y']:
-        selector_sorted_by_hierarchy = [(uu, param) for uu, param in sorted_uu_params if param.side == side]
-        selector_sorted_by_hierarchy.reverse()
-        len_sel_sort = len(selector_sorted_by_hierarchy)
-        t_signal = []
-        comp_signals = []
-        if len(selector_sorted_by_hierarchy) == 1:
-            comp_signals.append(('+', raw_signals[selector_sorted_by_hierarchy[0][0]]))
-        for i, (uu, param) in enumerate(selector_sorted_by_hierarchy[:-1]):
-            print(uu, param, side)
-            operator = param.operator
-            hierarchy = param.hierarchy
-            next_param = selector_sorted_by_hierarchy[i + 1][1]
-            # Only one signal in comp
-            if next_param.function != 'comb' and param.level == next_param.level:
-                # combine signals
-                signal_1 = raw_signals[uu]
-                next_uu = selector_sorted_by_hierarchy[i + 1][0]
-                signal_2 = raw_signals[next_uu]
-                if operator == '+':
-                    t_signal = add(signal_1, signal_2)
-                elif operator == '*':
-                    t_signal = multiply(signal_1, signal_2)
-            elif next_param.function != 'comb' and param.level != next_param.level:
-                print('Next param diff level', hierarchy)
-                comp_signals.append((operator, raw_signals[uu]))
-            if selector_sorted_by_hierarchy[i][1].function == 'comb':
-                comp_signals.append((operator, t_signal))
-        print(comp_signals)
-        t_signal = comp_signals[0]
-        for i, (operator, signal_1) in enumerate(comp_signals[1:]):
+        params_values_filtered = [v for v in parameters.values() if v.side == side]
+        params_items_filtered = [i for i in parameters.items() if i[1].side == side]
+        max_level = max([param.level for param in params_values_filtered])
+        max_hierarchy = max([param.hierarchy for param in params_values_filtered])
+        sorted_uu_params = sorted(params_items_filtered, key=lambda _: _[1].hierarchy)
+        for level in range(max_level - 1, -1, -1):  # level -1 because the lowest level can not contain comb signals(doesn't make sens if it could)
+            # print('Level:', level)
+            params_with_same_level = [p for p in sorted_uu_params if p[1].level == level]
+            for (uu, param) in params_with_same_level:
+                # print(f'   Signal/Hierarchy/Level: {param.function:<4}', str(param.hierarchy), str(param.level))
+                if param.function == 'comb':
+                    last_signal_in_comb_tree = None
+
+                    range_hierarchy_til_end = range(param.hierarchy + 1, max_hierarchy + 1)
+                    for t_hierarchy in range_hierarchy_til_end:
+                        # print('      ', t_hierarchy)
+                        if sorted_uu_params[t_hierarchy][1].level >= (level + 1):  # (param.level + 1)
+                            last_signal_in_comb_tree = t_hierarchy
+                        else:
+                            # Next Path
+                            # print('break on', t_hierarchy)
+                            break
+                        print('         Last sig', last_signal_in_comb_tree)
+
+                    if last_signal_in_comb_tree == None:
+                        # print(f'Warning: hierarchy {param.hierarchy} empty')
+                        raw_signals[uu] = [1]  # evade calc error
+                        continue
+
+                    # Next signal has different level -> calc this path and save to comb then break
+                    path_parameters = sorted_uu_params[param.hierarchy + 1:last_signal_in_comb_tree + 1]
+                    if len(path_parameters) == 1:
+                        uu_signal_in_path = path_parameters[0][0]
+                        raw_signals[uu] = raw_signals[uu_signal_in_path]
+                    else:
+                        first_uu_in_list = path_parameters[0][0]
+                        t_signal = raw_signals[first_uu_in_list]
+                        for _uu, operator in [(_uu, p.operator) for _uu, p in path_parameters[1:]]:
+                            signal_1 = raw_signals[_uu]
+                            if operator == '+':
+                                t_signal = add(signal_1, t_signal)
+                            elif operator == '*':
+                                t_signal = multiply(signal_1, t_signal)
+                        raw_signals[uu] = t_signal
+                    # print(f'         sigs in path: {path_parameters}')
+                    # Amplitude
+                    if param.amplitude != 1.0:
+                        raw_signals[uu] = scale(raw_signals[uu], param.amplitude)
+                    # Offset
+                    if param.offset != 0:
+                        raw_signals[uu] = offset(raw_signals[uu], param.offset)
+
+                    break
+        del params_values_filtered
+        del params_items_filtered
+
+        # Add/Multiply on level 0
+        level_0 = [_ for _ in sorted_uu_params if _[1].level == 0]
+        print(level_0)
+        t_signal = raw_signals[level_0[0][0]]
+        for _uu, operator in [(_uu, p.operator) for _uu, p in level_0[1:]]:
+            print('First level')
+            signal_1 = raw_signals[_uu]
             if operator == '+':
                 t_signal = add(signal_1, t_signal)
             elif operator == '*':
                 t_signal = multiply(signal_1, t_signal)
+
         if side == 'x':
             x_samples = t_signal
         elif side == 'y':
             y_samples = t_signal
-    '''
-    """
-    from pprint import pprint
-    for side in ['x', 'y']:
-        hierarchy = 0
-        start_hierarchy = 0
-        end_hierarchy = 0
-        paths = []
-        highest_level = max([p.level for p in parameters.values() if p.side == side])
-        print('highest_level', highest_level)
-        all_selectors = [p for p in parameters.values() if p.side == side]
-        for i, s in enumerate(all_selectors):
-            try:
-                print(s)
-                if s.level > all_selectors[i + 1].level:  # next selector is on a higher level
-                    end_hierarchy = i + 1
-                    paths.append((start_hierarchy, end_hierarchy))
-                    start_hierarchy = end_hierarchy
-            except IndexError as E:
-                if i + 2 > len(all_selectors):
-                    end_hierarchy = i
-                    paths.append((start_hierarchy, end_hierarchy))
-                else:
-                    raise E
-        pprint(paths)
-        
-    """
 
-    '''
-    print(c_parameters)
-    uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'x'][0]
-    x_samples = x_signals[uu]
-    del c_parameters[uu]
+    for uu, sig in raw_signals.items():
+        print(uu, len(sig))
 
-    uu, p = [(uu, p) for uu, p in c_parameters.items() if p.hierarchy == None and p.side == 'y'][0]
-    y_samples = y_signals[uu]
-    del c_parameters[uu]
-    '''
-
-    for param in parameters.values():
-        if param.function == 'comb':
-            continue
-        f = param.frequency
-        # Signal
-        signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
-        # Amplitude
-        if param.amplitude != 1.0:
-            samples = scale(signal, param.amplitude)
-        else:
-            samples = signal
-        # Offset
-        if param.offset != 0:
-            samples = offset(samples, param.offset)
-        # Multiply
-        if param.side == 'x':
-            if x_samples:
-                x_samples = multiply(x_samples, samples)
-            else:
-                x_samples = samples
-        elif param.side == 'y':
-            if y_samples:
-                y_samples = multiply(y_samples, samples)
-            else:
-                y_samples = samples
-
-    write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
+    try:
+        write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
+    except Exception as E:
+        print(E)
     print('calc done')
 
 
