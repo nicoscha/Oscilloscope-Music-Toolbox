@@ -79,7 +79,7 @@ class HierarchyButtons(QVBoxLayout):
     def up_clicked(self):
         hierarchy = parameters[self.uu].hierarchy
         if hierarchy > 0:
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy='')#(hierarchy, -1))
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, -1))
 
     def down_clicked(self):
@@ -87,7 +87,7 @@ class HierarchyButtons(QVBoxLayout):
         own_side = parameters[self.uu].side
         current_max = max([p.hierarchy for p in parameters.values() if p.side == own_side])
         if hierarchy < current_max:  # Arbitrary limit
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy='')#'(hierarchy, +1))
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, +1))
 
     def remove(self):
