@@ -58,7 +58,7 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 
 
 class HierarchyButtons(QVBoxLayout):
-    hierarchy_changed = pyqtSignal()
+    hierarchy_changed = pyqtSignal(tuple)
 
     def build(self, uu):
         self.uu = uu
@@ -79,16 +79,16 @@ class HierarchyButtons(QVBoxLayout):
     def up_clicked(self):
         hierarchy = parameters[self.uu].hierarchy
         if hierarchy > 0:
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=(hierarchy, -1))
-            self.hierarchy_changed.emit()
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy='')#(hierarchy, -1))
+            self.hierarchy_changed.emit((self.uu, hierarchy, -1))
 
     def down_clicked(self):
         hierarchy = parameters[self.uu].hierarchy
         own_side = parameters[self.uu].side
         current_max = max([p.hierarchy for p in parameters.values() if p.side == own_side])
         if hierarchy < current_max:  # Arbitrary limit
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=(hierarchy, +1))
-            self.hierarchy_changed.emit()
+            parameters[self.uu] = parameters[self.uu]._replace(hierarchy='')#'(hierarchy, +1))
+            self.hierarchy_changed.emit((self.uu, hierarchy, +1))
 
     def remove(self):
         self.hierarchy_up.deleteLater()
@@ -97,7 +97,7 @@ class HierarchyButtons(QVBoxLayout):
 
 class LevelButtons(QHBoxLayout):
     level_changed = pyqtSignal()
-    hierarchy_changed = pyqtSignal()
+    hierarchy_changed = pyqtSignal(tuple)
 
     def build(self, uu):
         self.uu = uu
@@ -140,7 +140,7 @@ class LevelButtons(QHBoxLayout):
 
 
 class Selector(QHBoxLayout):
-    hierarchy_changed = pyqtSignal()
+    hierarchy_changed = pyqtSignal(tuple)
 
     def build(self, uu: str, side: str, signal=None, operator='*', amplitude: float = 1.0,
               frequency: float = 400, offset: float = 0.0, level: int = 0, hierarchy=None) -> None:
@@ -392,7 +392,7 @@ class XYLayout(QVBoxLayout):
                 child.remove()
                 child.deleteLater()
 
-    def update_order(self):
+    def update_order(self, changed_selector: tuple[str, int, int]):
         c_parameters = parameters.copy()
         # Remove all selectors on this side
         _parameters = []
@@ -400,23 +400,24 @@ class XYLayout(QVBoxLayout):
             if c_parameters[uu].side == self.side:
                 _parameters.append((uu, parameters[uu]))
                 self.remove_selector(uu)
-        from pprint import pprint
 
         # Order selectors
-        changed_selector = [(uu, param) for uu, param in _parameters if isinstance(param.hierarchy, tuple)]
-        changed_selector = changed_selector[0]
-        change = changed_selector[1].hierarchy[1]
-        new_index = sum(changed_selector[1].hierarchy)
+        changed_selector_uu = changed_selector[0]
+        changed_selector_hierarchy = changed_selector[1]
+        change = changed_selector[2]  # +1 or -1
+        new_index = changed_selector_hierarchy + change
+
         new_h = [None] * len(_parameters)
         for uu, param in _parameters:
-            if (uu, param) != changed_selector:
+            if uu != changed_selector_uu:
                 old_index = param.hierarchy
                 if old_index < new_index:
                     new_h[old_index] = (uu, param)
                 elif old_index > new_index:
                     new_h[old_index] = (uu, param)
                 elif old_index == new_index:
-                    new_h[old_index - change] = (uu, param)
+                    t_param = param._replace(hierarchy=old_index - change)
+                    new_h[old_index - change] = (uu, t_param)
             else:
                 new_param = param._replace(hierarchy=new_index)
                 new_h[new_index] = (uu, new_param)
