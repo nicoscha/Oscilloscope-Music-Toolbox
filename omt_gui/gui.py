@@ -436,7 +436,7 @@ class XYLayout(QVBoxLayout):
 
 def set_sample_rate(sample_rate_str: str) -> None:
     global SAMPLE_RATE
-    SAMPLE_RATE = int(sample_rate_str.replace('k Hz', ''))
+    SAMPLE_RATE = int(float(sample_rate_str.replace('k Hz', '')) * 1000)
 
 
 def set_samples(samples_str: str) -> None:
