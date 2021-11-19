@@ -143,7 +143,7 @@ def write(x_frames: List, y_frames: List, channels: int = 2, sample_width: int =
 
 
 def read(file_path: str,) -> Union[List, tuple[List, List]]:
-    # one channel, two bytes sample width
+    # one/two channel, two bytes sample width
     with wave.open(file_path, 'rb') as wav:
         sample_rate = wav.getframerate()
         n_frames = wav.getnframes()
