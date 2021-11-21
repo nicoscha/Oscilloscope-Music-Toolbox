@@ -335,10 +335,10 @@ def calc():
 
         # Add/Multiply on level 0
         level_0 = [_ for _ in sorted_uu_params if _[1].level == 0]
-        print(level_0)
+        # print(level_0)
         t_signal = raw_signals[level_0[0][0]]
         for _uu, operator in [(_uu, p.operator) for _uu, p in level_0[1:]]:
-            print('First level')
+            # print('First level')
             signal_1 = raw_signals[_uu]
             if operator == '+':
                 t_signal = add(signal_1, t_signal)
@@ -373,6 +373,7 @@ class XYLayout(QVBoxLayout):
 
         self.addWidget(add_button)
         self.addWidget(label)
+        self.setAlignment(Qt.AlignTop)
         if default_selector:
             self.add_selector()
 
