@@ -1,5 +1,6 @@
 from sys import path
 path.append(__file__.replace('\\main.py', ''))
+path.append(__file__.replace('\\omt_gui\\main.py', ''))
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
