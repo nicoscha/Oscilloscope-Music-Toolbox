@@ -9,7 +9,7 @@ from collections import namedtuple
 import csv
 
 from uuid import uuid4
-from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, offset, write, scale, multiply
+from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
@@ -174,7 +174,7 @@ class Selector(QHBoxLayout):
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
-        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb'))
+        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb', 'x^f'))
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
         else:
@@ -245,7 +245,7 @@ class Selector(QHBoxLayout):
 
 
 gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
-           'tri': gen_triangle, 'rec': gen_rectangle}
+           'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
 
 
 def calc():
