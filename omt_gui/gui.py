@@ -197,7 +197,9 @@ class Selector(QHBoxLayout):
 
         self.update_parameters()
         self.level_buttons.level_changed.connect(self.update_spacer)
+        self.level_buttons.level_changed.connect(self.adjust_enabled_on_operator_combo_box)
         self.level_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
+        self.level_buttons.hierarchy_changed.connect(self.adjust_enabled_on_operator_combo_box)
 
         self.addSpacerItem(self.spacer)
         self.addLayout(self.level_buttons)
@@ -226,6 +228,19 @@ class Selector(QHBoxLayout):
                                    level=self.level, hierarchy=self.hierarchy)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
+
+    def adjust_enabled_on_operator_combo_box(self):
+        # Deactivate operator for the first element in a hierarchy
+        h_and_l_on_side = [(p.hierarchy, p.level) for p in parameters.values()
+                           if self.side == p.side]
+        l_above = [l for (h, l) in h_and_l_on_side if self.hierarchy - 1 == h]
+        if l_above:
+            disable_operator = l_above[0] + 1 <= self.level
+            print(disable_operator)
+            if disable_operator:
+                self.operator_combo_box.setEnabled(False)
+            else:
+                self.operator_combo_box.setEnabled(True)
 
     def update_spacer(self):
         self.level = parameters[self.uu].level
