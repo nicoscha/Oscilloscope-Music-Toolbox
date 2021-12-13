@@ -155,6 +155,28 @@ def write(x_frames: List, y_frames: List, channels: int = 2, sample_width: int =
         y_frame = 32767 * y_frames[i]
         frames.append(int(y_frame).to_bytes(2, byteorder='little', signed=True))
 
+    write_wav_file(frames, sample_rate=sample_rate)
+
+
+def write_4ch(x_frames: List, y_frames: List, x_frames_2: List, y_frames_2: List, sample_rate: int = 48000):
+    print(f'len x {len(x_frames)} len y {len(y_frames)} len x2 {len(x_frames_2)} len y2 {len(y_frames_2)}')
+    n_frames = len(x_frames)
+    frames = []
+    for i in range(n_frames):
+        x_frame = 32767 * x_frames[i]
+        frames.append(int(x_frame).to_bytes(2, byteorder='little', signed=True))
+        y_frame = 32767 * y_frames[i]
+        frames.append(int(y_frame).to_bytes(2, byteorder='little', signed=True))
+        x_frame_2 = 32767 * x_frames_2[i]
+        frames.append(int(x_frame_2).to_bytes(2, byteorder='little', signed=True))
+        y_frame_2 = 32767 * y_frames_2[i]
+        frames.append(int(y_frame_2).to_bytes(2, byteorder='little', signed=True))
+
+    write_wav_file(frames, channels=4, sample_rate=sample_rate)
+
+
+def write_wav_file(frames: List, channels: int = 2, sample_width: int = 2, sample_rate: int = 48000):
+    n_frames = len(frames)
     with wave.open('gen2.wav', 'wb') as wav:
         wav.setparams((channels, sample_width, sample_rate,
                        n_frames, 'NONE', 'not compressed'))
