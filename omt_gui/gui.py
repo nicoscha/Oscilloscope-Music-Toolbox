@@ -236,7 +236,6 @@ class Selector(QHBoxLayout):
         l_above = [l for (h, l) in h_and_l_on_side if self.hierarchy - 1 == h]
         if l_above:
             disable_operator = l_above[0] + 1 <= self.level
-            print(disable_operator)
             if disable_operator:
                 self.operator_combo_box.setEnabled(False)
             else:
