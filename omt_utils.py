@@ -1,5 +1,5 @@
 from typing import Union, List
-from math import cos, sin, pi, pow as m_pow
+from math import cos, sin, pi
 import warnings
 import wave
 
@@ -134,14 +134,15 @@ def gen_x_over_y(y: int, sample_rate: int, duration: int) -> List:
     :return: List of samples
     """
     half_duration = int(duration / 2)
-    range_samples = range(0, half_duration)
+    range_samples = range(-half_duration, half_duration)
     samples = []
     for x in range_samples:
-        samples.append(m_pow(x, y))
-    print(min(samples), max(samples))
+        p = x ** y
+        if isinstance(p, complex):
+            p = abs(p)
+        samples.append(p)
     max_sample = max([abs(min(samples)), abs(max(samples))])
     samples = [s / max_sample for s in samples]  # Scale from 0..1
-    print(min(samples), max(samples))
     return samples
 
 
