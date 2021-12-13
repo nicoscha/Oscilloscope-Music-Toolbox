@@ -253,8 +253,6 @@ def calc():
     x_samples = []
     y_samples = []
 
-    raw_x_signals = {}
-    raw_y_signals = {}
     raw_signals = {}
     for uu, param in parameters.items():
         if param.function == 'comb':
@@ -270,10 +268,6 @@ def calc():
         # Offset
         if param.offset != 0:
             samples = offset(samples, param.offset)
-        if param.side == 'x':
-            raw_x_signals[uu] = samples
-        elif param.side == 'y':
-            raw_y_signals[uu] = samples
         raw_signals[uu] = samples
 
     for side in ['x', 'y']:
