@@ -188,14 +188,15 @@ def read(file_path: str,) -> Union[List, tuple[List, List]]:
     # one/two channel, two bytes sample width
     with wave.open(file_path, 'rb') as wav:
         sample_rate = wav.getframerate()
+        n_channels = wav.getnchannels()
         n_frames = wav.getnframes()
         raw_data = wav.readframes(n_frames)
-        data = []
         # Convert bytes to integers
         data = [int.from_bytes(raw_data[i:i + 2], byteorder='little', signed=True) for i in range(0, len(raw_data), 2)]
-        if n_frames == 2:
-            data = ([s for i, s in enumerate(data) if i % 2 == 0],
-                    [s for i, s in enumerate(data) if i % 2 == 1])
+        if n_channels == 2:
+            l = [data[i] for i in range(len(data)) if i % 2 == 0]
+            r = [data[i] for i in range(len(data)) if i % 2 == 1]
+            data = (l, r)
         return sample_rate, data
 
 
