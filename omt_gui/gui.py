@@ -2,11 +2,19 @@ import math
 from datetime import date as dt_date
 from functools import partial
 from PyQt5.QtCore import QDate, Qt, pyqtSignal
-from PyQt5.QtGui import QStandardItemModel
+from PyQt5.QtGui import QStandardItemModel, QPixmap
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDateEdit, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QStackedWidget, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
 from collections import namedtuple
 import csv
+
+import omt_image_utils
+
+try:
+    import matplotlib.image as mat_img
+    matplotlib_missing = False
+except ImportError:
+    matplotlib_missing = True
 
 from uuid import uuid4
 from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
@@ -366,6 +374,7 @@ def calc():
     except Exception as E:
         print(E)
     print('calc done')
+    return x_samples, y_samples
 
 
 class XYLayout(QVBoxLayout):
@@ -457,6 +466,36 @@ def set_samples(samples_str: str) -> None:
         SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
 
 
+class ImageDisplay(QCheckBox):
+    def __init__(self, parent=None):
+        super(ImageDisplay, self).__init__(parent)
+        self.clicked.connect(self.on_click)
+
+        self.image = QLabel()
+        self.w = self.build_window()
+        self.w.setWindowTitle('OMT-GUI Audio as Image')
+
+    def on_click(self, clicked: bool) -> None:
+        if clicked:
+            self.w.show()
+        else:
+            self.w.hide()
+
+    def build_window(self):
+        main_widget = QWidget()
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.image)
+        main_widget.setLayout(main_layout)
+        return main_widget
+
+    def refresh_image(self, x_samples: List, y_samples: List):
+        x_samples = [32767 * _ for _ in x_samples]
+        y_samples = [32767 * _ for _ in y_samples]
+        omt_image_utils.convert_audio_to_image((x_samples, y_samples))
+        self.image.setPixmap(QPixmap('a_to_i.png'))
+        self.update()
+
+
 class GUI(QWidget):
     def build(self):
         """
@@ -481,11 +520,15 @@ class GUI(QWidget):
 
         start_button = QPushButton()
         start_button.setText('Start')
-        start_button.clicked.connect(calc)
+        start_button.clicked.connect(self.start)
 
         control_layout = QHBoxLayout()
         control_layout.addWidget(load_button)
         control_layout.addWidget(save_button)
+        if not matplotlib_missing:
+            wav_img = ImageDisplay()
+            wav_img.setText('Show wav as image')
+            control_layout.addWidget(wav_img)
         control_layout.addWidget(sample_rate)
         control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
@@ -551,3 +594,12 @@ class GUI(QWidget):
                 data = [p.operator, p.amplitude, p.function, p.frequency, p.offset, p.side,
                         p.level, p.hierarchy, uu]
                 writer.writerow(data)
+
+    def start(self) -> None:
+        x_samples, y_samples = calc()
+        if not matplotlib_missing:
+            wav_img = self.findChild(ImageDisplay)
+            if wav_img.isChecked():
+                wav_img.refresh_image(x_samples, y_samples)
+        del x_samples
+        del y_samples
