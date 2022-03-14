@@ -14,7 +14,7 @@ def convert_audio_to_image(data: tuple[List, List], image_size: int = 640,
         raise ValueError(f'Stereo audio needed {len(data)} channel provided')
 
     image = [[0 for _ in range(image_size)] for _ in range(image_size)]
-    scaling_factor = (image_size - 2)/2
+    scaling_factor = (image_size - 2) / 2
     offset = int(image_size / 2)
     _y, _x = data
     for (x, y) in zip(_x, _y):
