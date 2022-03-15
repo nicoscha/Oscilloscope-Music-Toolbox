@@ -147,16 +147,20 @@ def gen_x_over_y(y: int, sample_rate: int, duration: int) -> List:
 
 
 def write(x_frames: List, y_frames: List, channels: int = 2, sample_width: int = 2, sample_rate: int = 48000):
+    if channels > 2 or channels < 1:
+        raise ValueError('Number of channels below 1 or above 2 are not allowed')
     print(f'len x {len(x_frames)} len y {len(y_frames)}')
     n_frames = len(x_frames)
     frames = []
     for i in range(n_frames):
         x_frame = 32767 * x_frames[i]
-        frames.append(int(x_frame).to_bytes(2, byteorder='little', signed=True))
+        frames.append(int(x_frame).to_bytes(sample_width, byteorder='little', signed=True))
+        if channels == 1:
+            continue
         y_frame = 32767 * y_frames[i]
-        frames.append(int(y_frame).to_bytes(2, byteorder='little', signed=True))
+        frames.append(int(y_frame).to_bytes(sample_width, byteorder='little', signed=True))
 
-    write_wav_file(frames, sample_rate=sample_rate)
+    write_wav_file(frames, channels=channels, sample_width=sample_width, sample_rate=sample_rate)
 
 
 def write_4ch(x_frames: List, y_frames: List, x_frames_2: List, y_frames_2: List, sample_rate: int = 48000):
@@ -173,7 +177,7 @@ def write_4ch(x_frames: List, y_frames: List, x_frames_2: List, y_frames_2: List
         y_frame_2 = 32767 * y_frames_2[i]
         frames.append(int(y_frame_2).to_bytes(2, byteorder='little', signed=True))
 
-    write_wav_file(frames, channels=4, sample_rate=sample_rate)
+    write_wav_file(frames, channels=4, sample_width=2, sample_rate=sample_rate)
 
 
 def write_wav_file(frames: List, channels: int = 2, sample_width: int = 2, sample_rate: int = 48000):
