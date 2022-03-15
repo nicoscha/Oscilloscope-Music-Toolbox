@@ -1,4 +1,5 @@
 import math
+from os import remove
 from datetime import date as dt_date
 from functools import partial
 from PyQt5.QtCore import QDate, Qt, pyqtSignal
@@ -489,10 +490,13 @@ class ImageDisplay(QCheckBox):
         return main_widget
 
     def refresh_image(self, x_samples: List, y_samples: List):
-        x_samples = [32767 * _ for _ in x_samples]
-        y_samples = [32767 * _ for _ in y_samples]
-        omt_image_utils.convert_audio_to_image((x_samples, y_samples))
-        self.image.setPixmap(QPixmap('a_to_i.png'))
+        file_name = 'temp_' + str(uuid4()) + '.png'
+        omt_image_utils.convert_audio_to_image((x_samples, y_samples), file_name=file_name)
+        self.image.setPixmap(QPixmap(file_name))
+        try:
+            remove(file_name)
+        except (PermissionError, FileNotFoundError):
+            pass
         self.update()
 
 
