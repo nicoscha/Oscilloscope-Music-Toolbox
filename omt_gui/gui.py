@@ -1,10 +1,13 @@
 import math
+import os
 from os import remove
 from datetime import date as dt_date
 from functools import partial
-from PyQt5.QtCore import QDate, Qt, pyqtSignal
+from PyQt5.QtCore import QDate, Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QStandardItemModel, QPixmap
-from PyQt5.QtWidgets import QComboBox, QCheckBox, QDateEdit, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QStackedWidget, QTabWidget, QVBoxLayout, QWidget
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
 from collections import namedtuple
 import csv
@@ -473,6 +476,12 @@ class ImageDisplay(QCheckBox):
         self.clicked.connect(self.on_click)
 
         self.image = QLabel()
+        self.video_widget = QVideoWidget()
+        self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
+        self.player.setVideoOutput(self.video_widget)
+        self.ffmpeg_available = os.system('ffmpeg') == 1
+        self.ffmpeg_available = 0  # disabled until the video_widget correctly displays content
+
         self.w = self.build_window()
         self.w.setWindowTitle('OMT-GUI Audio as Image')
 
@@ -485,19 +494,54 @@ class ImageDisplay(QCheckBox):
     def build_window(self):
         main_widget = QWidget()
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.image)
+        if self.ffmpeg_available:
+            main_layout.addWidget(self.video_widget)
+        else:
+            main_layout.addWidget(self.image)
         main_widget.setLayout(main_layout)
         return main_widget
 
-    def refresh_image(self, x_samples: List, y_samples: List):
-        file_name = 'temp_' + str(uuid4()) + '.png'
-        omt_image_utils.convert_audio_to_image((x_samples, y_samples), file_name=file_name)
-        self.image.setPixmap(QPixmap(file_name))
-        try:
-            remove(file_name)
-        except (PermissionError, FileNotFoundError):
-            pass
-        self.update()
+    def refresh_image(self, x_samples: List, y_samples: List) -> None:
+        if not self.ffmpeg_available:
+            file_name = 'temp_' + str(uuid4()) + '.png'
+            omt_image_utils.convert_audio_to_image((x_samples, y_samples), file_name=file_name)
+            self.image.setPixmap(QPixmap(file_name))
+            try:
+                remove(file_name)
+            except (PermissionError, FileNotFoundError):
+                pass
+            self.update()
+        else:
+            fps = 30
+            chunk_size = int(SAMPLE_RATE / fps)
+            files = []
+
+            # Write files
+            uu = uuid4()
+            for i in range(fps):
+                file_name = f'temp_{uu}_{i:02d}.png'
+                files.append(file_name)
+                start = i * chunk_size
+                end = start + chunk_size
+                omt_image_utils.convert_audio_to_image((x_samples[start:end],
+                                                        y_samples[start:end]),
+                                                       file_name=file_name)
+                self.image.setPixmap(QPixmap(file_name))
+
+            # Combine files
+            output_file_name = 'animation.mp4'
+            os.system(f'ffmpeg -y -i temp_{uu}_%02d.png -c:v libx264 -vf fps={fps} -pix_fmt yuv420p {output_file_name}')
+
+            # Remove files
+            for file_name in files:
+                try:
+                    remove(file_name)
+                except (PermissionError, FileNotFoundError):
+                    pass
+
+            # Update Widget
+            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_name)))
+            self.player.play()
 
 
 class GUI(QWidget):
