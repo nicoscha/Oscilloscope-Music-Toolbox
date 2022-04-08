@@ -383,3 +383,76 @@ def convert_image_to_audio(file_name: str) -> tuple[List, List]:
     # plt.show()
 
     return x, y
+
+
+def gen_low_pass(k, vg):
+    t_bk = [0] * k
+    for k_i in range(k):
+        if k_i == 0:
+            t_bk[0] = 2 * vg
+        else:
+            t_bk[k_i] = 2 * ((numpy.sin(2 * numpy.pi * k_i * vg)) / (2 * numpy.pi * k_i *vg))
+    bk = t_bk[:0:-1] + t_bk
+    return bk
+
+
+def scale_audio_to_fps(x_samples: numpy.array, y_samples: numpy.array, fps: int = 30, sample_rate: int = 48000) -> tuple[numpy.array, numpy.array]:
+    samples_per_frame = int(sample_rate / fps)
+    x_target_samples = numpy.zeros(samples_per_frame)
+    y_target_samples = numpy.zeros(samples_per_frame)
+    if len(x_samples) < samples_per_frame:  # Up sampling
+        factor = samples_per_frame / len(x_samples)
+        t_x = []
+        t_y = []
+        for i in range(int(factor)):
+            if i % 2 == 0:
+                t_x.extend(x_samples)
+                t_y.extend(y_samples)
+            else:
+                t_x.extend(x_samples[::-1])
+                t_y.extend(y_samples[::-1])
+        #if len(t_x) < samples_per_frame:
+        #    t_x[len(t_x):] = x_samples[:samples_per_frame - len(t_x)]
+        #    t_y[len(t_y):] = y_samples[:samples_per_frame - len(t_y)]
+        x_target_samples = t_x
+        y_target_samples = t_y
+        """
+        factor = int(samples_per_frame / len(x_samples)) + 1
+        for i in range(1, samples_per_frame, factor):
+            x_target_samples[i] = x_samples[i // factor]
+            y_target_samples[i] = y_samples[i // factor]
+
+        k = 21
+        lp_filter = gen_low_pass(k, 0.25)
+        for i in range(8):
+            x_target_samples = numpy.convolve(x_target_samples, lp_filter)
+            y_target_samples = numpy.convolve(y_target_samples, lp_filter)
+        for i in range(8):
+            x_target_samples = trim_convolved(k, x_target_samples)
+            y_target_samples = trim_convolved(k, y_target_samples)
+
+        scale_factor = max(numpy.max(numpy.abs(x_target_samples)),
+                           numpy.max(numpy.abs(y_target_samples)))
+        x_target_samples = numpy.divide(x_target_samples, scale_factor)
+        y_target_samples = numpy.divide(y_target_samples, scale_factor)
+        """
+    elif len(x_samples) > samples_per_frame:  # Down sampling
+        factor = 1 / (samples_per_frame / len(x_samples)) + 1
+        k = 21
+        lp_filter = gen_low_pass(k, 0.25)
+        x_filtered_samples = numpy.convolve(x_samples, lp_filter)
+        y_filtered_samples = numpy.convolve(y_samples, lp_filter)
+        x_trimmed_samples = trim_convolved(k, x_filtered_samples)
+        y_trimmed_samples = trim_convolved(k, y_filtered_samples)
+        #for i in range(len(target_samples)):
+        #    target_samples[i] = trimmed_samples[int(min(i * factor, len(target_samples)))]
+        x_target_samples = x_trimmed_samples[::int(factor)]
+        y_target_samples = y_trimmed_samples[::int(factor)]
+        scale_factor = max(numpy.max(numpy.abs(x_target_samples)),
+                           numpy.max(numpy.abs(y_target_samples)))
+        x_target_samples = numpy.divide(x_target_samples, scale_factor)
+        y_target_samples = numpy.divide(y_target_samples, scale_factor)
+    else:
+        x_target_samples = x_samples
+        y_target_samples = y_samples
+    return x_target_samples, y_target_samples
