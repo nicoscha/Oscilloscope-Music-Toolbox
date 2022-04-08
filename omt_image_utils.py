@@ -153,7 +153,6 @@ def span_path(image, cp_uu, crosspoints, path_color, path_found, debug=False):
                 start_y = cp.block[0] + i_y
                 start_x = cp.block[1] + i_x
                 image[cp.block[0] + i_y, cp.block[1] + i_x] = path_found
-                print('block start:', start_y, start_x)
                 b = True
                 break
         if b:
@@ -173,7 +172,7 @@ def span_path(image, cp_uu, crosspoints, path_color, path_found, debug=False):
             # print('new')
             if True:
                 lower_grid_size = 7
-                upper_grid_size = 33
+                upper_grid_size = 27
                 # for gs in range(3, 11+1, 2):
                 t_start_y, t_start_x, stuck, way = expanding_grid_search(image,
                     lower_grid_size, upper_grid_size, t_start_y, t_start_x,
@@ -181,7 +180,6 @@ def span_path(image, cp_uu, crosspoints, path_color, path_found, debug=False):
 
                 # Got stuck
                 if stuck:
-                    print('stuck', _, cp_uu, lower_grid_size, upper_grid_size)
                     if len(way) > 0:
                         #crosspoints[cp_uu].add_way(way)
                         pass
@@ -191,7 +189,6 @@ def span_path(image, cp_uu, crosspoints, path_color, path_found, debug=False):
                     break
             if b:  ### TODO ändern für mehre wege
                 break
-        print('ROL', len(way))
         way.reverse()
     print('EOL', len(way))
     if len(way) > 5:
@@ -212,7 +209,6 @@ def find_closest_points_1(path_1: list, path_2: list) -> Union[tuple[tuple[int, 
                 closet_point_path_2 = (y_p_2, x_p_2)
 
     if closet_point_path_1 and closet_point_path_2:
-        print(closet_point_path_1, closet_point_path_2)
         return closet_point_path_1, closet_point_path_2
     else:
         return None
@@ -296,22 +292,34 @@ def join(crosspoints):
     return joined_path
 
 
-def low_pass_filter(_m_x: list, _m_y: list, filter_length: int = 14):
+def trim_convolved(filter_length, samples):
+    return samples[filter_length-1:-filter_length-2]
+
+
+def convolve(_filter: numpy.array, x: numpy.array, y: numpy.array) -> tuple[numpy.array, numpy.array]:
+    """Convolve x and y with _filter and trim edges to original length"""
+    filter_length = len(_filter)
+    convolved_x = numpy.convolve(x, _filter)
+    m_x = list(trim_convolved(filter_length, convolved_x))
+    convolved_y = numpy.convolve(y, _filter)
+    m_y = list(trim_convolved(filter_length, convolved_y))
+    return m_x, m_y
+
+
+def low_pass_filter(x: list, y: list, filter_length: int = 14):
     if filter_length < 3:
         filter_length = 3
     avg_filter = numpy.divide(numpy.ones(filter_length), filter_length)
-    print(len(_m_x), len(_m_y))
-    _m_x = list(numpy.convolve(_m_x, avg_filter, mode='full'))[filter_length-1:-filter_length-2]
-    _m_y = list(numpy.convolve(_m_y, avg_filter, mode='full'))[filter_length-1:-filter_length-2]
-    return _m_x, _m_y
+
+    m_x, m_y = convolve(avg_filter, x, y)
+    return m_x, m_y
 
 
-def binominal_filter(_m_x: list, _m_y: list, filter_length: int = 5):
+def binominal_filter(x: list, y: list, filter_length: int = 5):
     filter = (numpy.poly1d([0.5, 0.5]) ** filter_length).coeffs
     filter = [0.00149877197198622,	0.00908415081533000,	0.0204397024737571,	0.0177871339540238,	-0.00876649432087160,	-0.0270479272302460,	0.00301483598318381,	0.0453564257965458,	0.0118610026472115	-0.0777999049688654	-0.0543496128856909,	0.172588799779655,	0.419863104707615,	0.419863104707615,	0.172588799779655,	-0.0543496128856909,	-0.0777999049688654,	0.0118610026472115,	0.0453564257965458,	0.00301483598318381,	-0.0270479272302460,	-0.00876649432087160,	0.0177871339540238,	0.0204397024737571,	0.00908415081533000,	0.00149877197198622]
-    _m_x = list(numpy.convolve(_m_x, filter, mode='full'))[filter_length - 1:-filter_length - 2]
-    _m_y = list(numpy.convolve(_m_y, filter, mode='full'))[filter_length - 1:-filter_length - 2]
-    return _m_x, _m_y
+    m_x, m_y = convolve(filter, x, y)
+    return m_x, m_y
 
 
 def mirror_wav(_m_x, _m_y):
@@ -368,10 +376,10 @@ def convert_image_to_audio(file_name: str) -> tuple[List, List]:
     joined_path = join(crosspoints)
     x, y = transform_to_wav_cord(joined_path, image_size)
 
-    print()
-    print([v for (k, v) in crosspoints.items() if len(v.ways) > 0])
+    # print()
+    # print([v for (k, v) in crosspoints.items() if len(v.ways) > 0])
     import matplotlib.pyplot as plt
-    plt.imshow(image, cmap='gray')
-    plt.show()
+    # plt.imshow(image, cmap='gray')
+    # plt.show()
 
     return x, y
