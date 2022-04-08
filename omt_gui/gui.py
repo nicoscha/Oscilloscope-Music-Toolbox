@@ -1,7 +1,6 @@
 import math
 import os
 from os import remove
-from datetime import date as dt_date
 from functools import partial
 from PyQt5.QtCore import QDate, Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QStandardItemModel, QPixmap
@@ -72,7 +71,7 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 class HierarchyButtons(QVBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu):
+    def build(self, uu) -> None:
         self.uu = uu
         self.setSpacing(0)
 
@@ -88,13 +87,13 @@ class HierarchyButtons(QVBoxLayout):
         self.addWidget(self.hierarchy_up)
         self.addWidget(self.hierarchy_down)
 
-    def up_clicked(self):
+    def up_clicked(self) -> None:
         hierarchy = parameters[self.uu].hierarchy
         if hierarchy > 0:
             parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, -1))
 
-    def down_clicked(self):
+    def down_clicked(self) -> None:
         hierarchy = parameters[self.uu].hierarchy
         own_side = parameters[self.uu].side
         current_max = max([p.hierarchy for p in parameters.values() if p.side == own_side])
@@ -102,7 +101,7 @@ class HierarchyButtons(QVBoxLayout):
             parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, +1))
 
-    def remove(self):
+    def remove(self) -> None:
         self.hierarchy_up.deleteLater()
         self.hierarchy_down.deleteLater()
 
@@ -111,7 +110,7 @@ class LevelButtons(QHBoxLayout):
     level_changed = pyqtSignal()
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu):
+    def build(self, uu) -> None:
         self.uu = uu
         self.setSpacing(0)
 
@@ -130,19 +129,19 @@ class LevelButtons(QHBoxLayout):
 
         self.hierarchy_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
 
-    def up_clicked(self):
+    def up_clicked(self) -> None:
         if parameters[self.uu].level > 0:
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level - 1)
             self.level_changed.emit()
 
-    def down_clicked(self):
+    def down_clicked(self) -> None:
         if parameters[self.uu].level <= 5:  # Arbitrary limit
             level = parameters[self.uu].level
             parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
             self.level_changed.emit()
 
-    def remove(self):
+    def remove(self) -> None:
         self.level_up.deleteLater()
 
         self.hierarchy_buttons.remove()
@@ -241,7 +240,7 @@ class Selector(QHBoxLayout):
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
 
-    def adjust_enabled_on_operator_combo_box(self):
+    def adjust_enabled_on_operator_combo_box(self) -> None:
         # Deactivate operator for the first element in a hierarchy
         h_and_l_on_side = [(p.hierarchy, p.level) for p in parameters.values()
                            if self.side == p.side]
@@ -253,7 +252,7 @@ class Selector(QHBoxLayout):
             else:
                 self.operator_combo_box.setEnabled(True)
 
-    def update_spacer(self):
+    def update_spacer(self) -> None:
         self.level = parameters[self.uu].level
         self.spacer.changeSize(50 * self.level, 0)
         self.invalidate()
@@ -274,7 +273,7 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
            'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
 
 
-def calc():
+def calc() -> tuple[list, list]:
     print('calc start')
     x_samples = []
     y_samples = []
@@ -491,7 +490,7 @@ class ImageDisplay(QCheckBox):
         else:
             self.w.hide()
 
-    def build_window(self):
+    def build_window(self) -> QWidget:
         main_widget = QWidget()
         main_layout = QVBoxLayout()
         if self.ffmpeg_available:
@@ -545,7 +544,7 @@ class ImageDisplay(QCheckBox):
 
 
 class GUI(QWidget):
-    def build(self):
+    def build(self) -> None:
         """
         Build the gui and connect all signals and slots
         """
@@ -595,7 +594,7 @@ class GUI(QWidget):
 
         self.setLayout(self.main_h_box)
 
-    def load(self):
+    def load(self) -> None:
         file_path = show_load_file_pop_up()
         if not file_path:
             return None
@@ -629,7 +628,7 @@ class GUI(QWidget):
                 elif description['side'] == 'y':
                     self.y_layout.add_selector(selector=s)
 
-    def save(self):
+    def save(self) -> None:
         file_path = show_save_file_pop_up()
         if not file_path:
             return None
