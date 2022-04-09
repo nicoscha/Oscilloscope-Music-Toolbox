@@ -197,9 +197,10 @@ def read(file_path: str,) -> Union[List, tuple[List, List]]:
         raw_data = wav.readframes(n_frames)
         # Convert bytes to integers
         data = [int.from_bytes(raw_data[i:i + 2], byteorder='little', signed=True) for i in range(0, len(raw_data), 2)]
+        del raw_data
         if n_channels == 2:
-            l = [data[i] for i in range(len(data)) if i % 2 == 0]
-            r = [data[i] for i in range(len(data)) if i % 2 == 1]
+            l = [data[i] for i in range(0, len(data), 2)]
+            r = [data[i] for i in range(1, len(data), 2)]
             data = (l, r)
         return sample_rate, data
 
