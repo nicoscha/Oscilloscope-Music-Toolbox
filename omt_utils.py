@@ -45,6 +45,10 @@ def offset(signal: List[float], offset_value: float) -> List:
     return [_ + offset_value for _ in signal]
 
 
+def clip(signal:  List[float], limit: float) -> List:
+    return [x if -limit < x < limit else (x / abs(x)) * limit for x in signal]
+
+
 def multiply(signal_1: List[float], signal_2: List[float], to_int: bool = False) -> List[float]:
     if len(signal_1) != len(signal_2):
         warnings.warn('Signals have different length')
