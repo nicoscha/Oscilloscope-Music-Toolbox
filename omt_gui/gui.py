@@ -77,10 +77,12 @@ class HierarchyButtons(QVBoxLayout):
         self.setSpacing(0)
 
         self.hierarchy_up = QPushButton('⯅')
+        self.hierarchy_up.setToolTip('Move 1 hierarchy up')
         self.hierarchy_up.setMaximumWidth(15)
         self.hierarchy_up.setMaximumHeight(15)
         self.hierarchy_up.clicked.connect(self.up_clicked)
         self.hierarchy_down = QPushButton('⯆')
+        self.hierarchy_down.setToolTip('Move 1 hierarchy down')
         self.hierarchy_down.setMaximumWidth(15)
         self.hierarchy_down.setMaximumHeight(15)
         self.hierarchy_down.clicked.connect(self.down_clicked)
@@ -116,9 +118,11 @@ class LevelButtons(QHBoxLayout):
         self.setSpacing(0)
 
         self.level_up = QPushButton('⯇')
+        self.level_up.setToolTip('Move 1 level up')
         self.level_up.setMaximumWidth(15)
         self.level_up.clicked.connect(self.up_clicked)
-        self.level_down= QPushButton('⯈')
+        self.level_down = QPushButton('⯈')
+        self.level_down.setToolTip('Move 1 level down')
         self.level_down.setMaximumWidth(15)
         self.level_down.clicked.connect(self.down_clicked)
         self.hierarchy_buttons = HierarchyButtons()
@@ -175,17 +179,20 @@ class Selector(QHBoxLayout):
         self.level_buttons.build(self.uu)
 
         self.operator_combo_box = QComboBox()
+        self.operator_combo_box.setToolTip('Operation')
         self.operator_combo_box.addItems(['*', '+'])
         self.operator_combo_box.setCurrentText(operator)
         self.operator_combo_box.currentTextChanged.connect(self.update_parameters)
 
         self.amplitude_spin_box = QDoubleSpinBox()
+        self.amplitude_spin_box.setToolTip('Amplitude 0..10')
         self.amplitude_spin_box.setMaximum(10)
         self.amplitude_spin_box.setSingleStep(0.1)
         self.amplitude_spin_box.setValue(amplitude)
         self.amplitude_spin_box.valueChanged.connect(self.update_parameters)
 
         self.combo_box = QComboBox()
+        self.combo_box.setToolTip('Function')
         self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb', 'x^f'))
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
@@ -194,6 +201,7 @@ class Selector(QHBoxLayout):
         self.combo_box.currentTextChanged.connect(self.update_parameters)
 
         self.frequency_spin_box = QDoubleSpinBox()
+        self.frequency_spin_box.setToolTip('f in Hz')
         self.frequency_spin_box.setRange(0, SAMPLE_RATE/2)
         self.frequency_spin_box.setSingleStep(0.02)
         self.frequency_spin_box.setValue(frequency)
@@ -202,6 +210,7 @@ class Selector(QHBoxLayout):
             self.frequency_spin_box.setEnabled(False)
 
         self.offset_spin_box = QDoubleSpinBox()
+        self.offset_spin_box.setToolTip('Offset')
         self.offset_spin_box.setRange(-1, 1)
         self.offset_spin_box.setSingleStep(0.02)
         self.offset_spin_box.setValue(offset)
@@ -392,14 +401,10 @@ class XYLayout(QVBoxLayout):
         self.side = side
 
         add_button = QPushButton()
-        add_button.setText('Add signal')
+        add_button.setText(f'Add {side} signal')
         add_button.clicked.connect(self.add_selector)
 
-        label = QLabel()
-        label.setText('\tOperation  Amplitue  Function       f in Hz            Offset')
-
         self.addWidget(add_button)
-        self.addWidget(label)
         self.setAlignment(Qt.AlignTop)
         if default_selector:
             self.add_selector()
@@ -557,22 +562,27 @@ class GUI(QWidget):
         """
 
         load_button = QPushButton()
+        load_button.setToolTip('Load configuration file')
         load_button.setText('Load')
         load_button.clicked.connect(self.load)
 
         save_button = QPushButton()
+        save_button.setToolTip('Save current configuration')
         save_button.setText('Save')
         save_button.clicked.connect(self.save)
 
         sample_rate = QComboBox()
+        sample_rate.setToolTip('Sample rate')
         sample_rate.addItems(('192k Hz', '96k Hz', '48k Hz', '44.1k Hz'))
         sample_rate.currentTextChanged.connect(set_sample_rate)
 
         duration = QComboBox()
+        duration.setToolTip('Duration to render')
         duration.addItems(('5s', '10s', '1s', 'calc lcm'))
         duration.currentTextChanged.connect(set_samples)
 
         start_button = QPushButton()
+        start_button.setToolTip('Start rendering and save wav')
         start_button.setText('Start')
         start_button.clicked.connect(self.start)
 
