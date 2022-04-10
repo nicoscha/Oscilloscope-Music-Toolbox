@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, Q
 from typing import Callable, List, Union
 from collections import namedtuple
 import csv
+import warnings
 
 import omt_image_utils
 
@@ -373,6 +374,12 @@ def calc() -> tuple[list, list]:
         print(uu, len(sig))
 
     try:
+        if max(x_samples) > 1.0 or min(x_samples) < -1.0:
+            warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
+            x_samples = [x if -1.0 < x < 1.0 else (x / abs(x)) for x in x_samples]
+        if max(y_samples) > 1.0 or min(y_samples) < -1.0:
+            warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
+            y_samples = [y if -1.0 < y < 1.0 else (y / abs(y)) for y in y_samples]
         write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
     except Exception as E:
         print(E)
