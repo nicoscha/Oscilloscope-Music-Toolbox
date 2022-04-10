@@ -642,7 +642,7 @@ class GUI(QWidget):
             reader = csv.DictReader(file)
             for description in reader:
                 if 'clip' not in description:
-                    description['clip'] = 1.0
+                    description['clip'] = '1.0'
 
                 uu = description['uu']
                 side = description['side']
