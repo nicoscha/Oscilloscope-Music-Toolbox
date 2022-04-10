@@ -21,11 +21,11 @@ except ImportError:
     matplotlib_missing = True
 
 from uuid import uuid4
-from omt_utils import add, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
+from omt_utils import add, clip, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
-parameter = namedtuple('parameter', 'operator amplitude function frequency offset side level hierarchy')
+parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side level hierarchy')
 parameters = {}
 
 
@@ -159,7 +159,7 @@ class Selector(QHBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
     def build(self, uu: str, side: str, signal=None, operator='*', amplitude: float = 1.0,
-              frequency: float = 400, offset: float = 0.0, level: int = 0, hierarchy=None) -> None:
+              frequency: float = 400, offset: float = 0.0, clip: float = 1.0, level: int = 0, hierarchy=None) -> None:
         self.uu = uu
         self.side = side
 
@@ -216,6 +216,13 @@ class Selector(QHBoxLayout):
         self.offset_spin_box.setValue(offset)
         self.offset_spin_box.valueChanged.connect(self.update_parameters)
 
+        self.clip_box = QDoubleSpinBox()
+        self.clip_box.setToolTip('Clip boundary 0..10; 1 is default; >1 allows higher amplitude setting')
+        self.clip_box.setRange(0, 10)
+        self.clip_box.setSingleStep(0.05)
+        self.clip_box.setValue(clip)
+        self.clip_box.valueChanged.connect(self.update_parameters)
+
         self.update_parameters()
         self.level_buttons.level_changed.connect(self.update_spacer)
         self.level_buttons.level_changed.connect(self.adjust_enabled_on_operator_combo_box)
@@ -229,6 +236,7 @@ class Selector(QHBoxLayout):
         self.addWidget(self.combo_box)
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
+        self.addWidget(self.clip_box)
 
         self.update_spacer()
 
@@ -238,6 +246,7 @@ class Selector(QHBoxLayout):
         signal = self.combo_box.currentText()
         frequency = self.frequency_spin_box.value()
         offset = round(self.offset_spin_box.value(), 2)
+        clip = round(self.clip_box.value(), 2)
 
         if signal == 'comb':
             self.frequency_spin_box.setEnabled(False)
@@ -245,7 +254,7 @@ class Selector(QHBoxLayout):
             self.frequency_spin_box.setEnabled(True)
 
         self.parameter = parameter(operator=operator, amplitude=amplitude, function=signal,
-                                   frequency=frequency, offset=offset, side=self.side,
+                                   frequency=frequency, offset=offset, clip=clip, side=self.side,
                                    level=self.level, hierarchy=self.hierarchy)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
@@ -276,6 +285,7 @@ class Selector(QHBoxLayout):
         self.combo_box.deleteLater()
         self.frequency_spin_box.deleteLater()
         self.offset_spin_box.deleteLater()
+        self.clip_box.deleteLater()
         del parameters[self.uu]
 
 
@@ -303,7 +313,11 @@ def calc() -> tuple[list, list]:
         # Offset
         if param.offset != 0:
             samples = offset(samples, param.offset)
+        # Clip
+        if param.clip != 1.0:
+            samples = clip(samples, param.clip)
         raw_signals[uu] = samples
+
 
     for side in ['x', 'y']:
         params_values_filtered = [v for v in parameters.values() if v.side == side]
@@ -357,6 +371,9 @@ def calc() -> tuple[list, list]:
                     # Offset
                     if param.offset != 0:
                         raw_signals[uu] = offset(raw_signals[uu], param.offset)
+                    # Clip
+                    if param.clip != 1.0:
+                        raw_signals[uu] = clip(raw_signals[uu], param.clip)
 
                     break
         del params_values_filtered
@@ -385,10 +402,10 @@ def calc() -> tuple[list, list]:
     try:
         if max(x_samples) > 1.0 or min(x_samples) < -1.0:
             warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
-            x_samples = [x if -1.0 < x < 1.0 else (x / abs(x)) for x in x_samples]
+            x_samples = clip(x_samples, 1.0)
         if max(y_samples) > 1.0 or min(y_samples) < -1.0:
             warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
-            y_samples = [y if -1.0 < y < 1.0 else (y / abs(y)) for y in y_samples]
+            y_samples = clip(y_samples, 1.0)
         write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
     except Exception as E:
         print(E)
@@ -457,11 +474,11 @@ class XYLayout(QVBoxLayout):
 
         # Build new selectors
         for (uu, param) in new_h:
-            (operator, amplitude, signal, frequency, offset, side, level, hierarchy) = param
+            (operator, amplitude, signal, frequency, offset, clip, side, level, hierarchy) = param
 
             s = Selector()
             s.build(uu=uu, side=side, signal=signal, operator=operator,
-                    amplitude=amplitude, frequency=frequency, offset=offset,
+                    amplitude=amplitude, frequency=frequency, offset=offset, clip=clip,
                     level=level, hierarchy=hierarchy)
 
             self.add_selector(selector=s)
@@ -625,6 +642,9 @@ class GUI(QWidget):
         with open(file_path, 'r') as file:
             reader = csv.DictReader(file)
             for description in reader:
+                if 'clip' not in description:
+                    description['clip'] = 1.0
+
                 uu = description['uu']
                 side = description['side']
                 operator = description['operator']
@@ -632,13 +652,14 @@ class GUI(QWidget):
                 frequency = float(description['frequency'])
                 signal = description['function']
                 offset = float(description['offset'])
+                clip = float(description['clip'])
                 level = int(description['level'])
                 hierarchy = int(description['hierarchy'])
 
                 s = Selector()
                 s.build(uu=uu, side=side, signal=signal, operator=operator,
                         amplitude=amplitude, frequency=frequency, offset=offset,
-                        level=level, hierarchy=hierarchy)
+                        clip=clip, level=level, hierarchy=hierarchy)
 
                 if description['side'] == 'x':
                     self.x_layout.add_selector(selector=s)
@@ -653,9 +674,9 @@ class GUI(QWidget):
         with open(file_path, 'w') as file:
             print(parameters)
             writer = csv.writer(file)
-            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'side', 'level', 'hierarchy', 'uu'))
+            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'clip', 'side', 'level', 'hierarchy', 'uu'))
             for uu, p in parameters.items():
-                data = [p.operator, p.amplitude, p.function, p.frequency, p.offset, p.side,
+                data = [p.operator, p.amplitude, p.function, p.frequency, p.offset, p.clip, p.side,
                         p.level, p.hierarchy, uu]
                 writer.writerow(data)
 
