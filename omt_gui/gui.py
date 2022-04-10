@@ -299,6 +299,8 @@ def calc() -> tuple[list, list]:
     y_samples = []
 
     raw_signals = {}
+
+    # Generate samples for all basic functions (excludes comb)
     for uu, param in parameters.items():
         if param.function == 'comb':
             continue
@@ -317,7 +319,6 @@ def calc() -> tuple[list, list]:
         if param.clip != 1.0:
             samples = clip(samples, param.clip)
         raw_signals[uu] = samples
-
 
     for side in ['x', 'y']:
         params_values_filtered = [v for v in parameters.values() if v.side == side]
@@ -399,16 +400,14 @@ def calc() -> tuple[list, list]:
     for uu, sig in raw_signals.items():
         print(uu, len(sig))
 
-    try:
-        if max(x_samples) > 1.0 or min(x_samples) < -1.0:
-            warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
-            x_samples = clip(x_samples, 1.0)
-        if max(y_samples) > 1.0 or min(y_samples) < -1.0:
-            warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
-            y_samples = clip(y_samples, 1.0)
-        write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
-    except Exception as E:
-        print(E)
+    # Check for for to large values
+    if max(x_samples) > 1.0 or min(x_samples) < -1.0:
+        warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
+        x_samples = clip(x_samples, 1.0)
+    if max(y_samples) > 1.0 or min(y_samples) < -1.0:
+        warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
+        y_samples = clip(y_samples, 1.0)
+
     print('calc done')
     return x_samples, y_samples
 
@@ -682,6 +681,8 @@ class GUI(QWidget):
 
     def start(self) -> None:
         x_samples, y_samples = calc()
+        write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
+
         if not matplotlib_missing:
             wav_img = self.findChild(ImageDisplay)
             if wav_img.isChecked():
