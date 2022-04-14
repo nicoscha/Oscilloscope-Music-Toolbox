@@ -352,8 +352,41 @@ def calc_comb(param, signal: list) -> list[float]:
     return signal
 
 
-test_tree = [('a_', 0, 0), ('b_', 1, 1), ('c', 2, 2), ('d_', 3, 1), ('e', 4, 2),
-             ('f', 5, 2), ('g', 6, 0), ('h_', 7, 0), ('i', 8, 1), ('j', 9, 1)]
+def valid_tree(tree: list[tuple[str, int, int]]) -> str:
+    tree_len = len(tree)
+    side = parameters[tree[0][0]].side
+    if tree_len == 1:
+        uu = tree[0][0]
+        if parameters[uu].function == 'comb':
+            return f'First selector in {side} can\'t be comb.'
+    else:
+        first_level = tree[0][2]
+        if first_level != 0:
+            return 'First selector needs to be on top level.'
+        for i_h in range(1, tree_len):
+            previous_uu = tree[i_h - 1][0]
+            previous_l = tree[i_h - 1][2]
+            current_l = tree[i_h][2]
+            if previous_l >= current_l:  # End of comb / On same level
+                continue
+            elif previous_l + 1 == current_l:  # Correct comb
+                if parameters[previous_uu].function != 'comb':
+                    return f'Selector {i_h} in {side} should be comb.'
+                continue
+            elif previous_l < current_l:  #
+                return f'Selector {i_h + 1} in {side} on wrong level / level to low.'
+            else:
+                print(f'pre{previous_l}, cur{current_l}')
+                raise NotImplementedError
+
+        # Check if gen selector is below comb selector
+        for i_h in range(0, tree_len-1):
+            current_uu = tree[i_h][0]
+            current_l = tree[i_h][2]
+            next_l = tree[i_h + 1][2]
+            if (parameters[current_uu].function == 'comb'
+                    and next_l != current_l + 1):
+                return f'Comb on level {current_l + 1} in {side} can\'t be empty. Add a selector on lower level or remove comb.'
 
 
 def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]]):
@@ -693,6 +726,22 @@ class GUI(QWidget):
         print('calc start')
         x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'x']
         y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'y']
+        valid_x = valid_tree(x_tree)
+        valid_y = valid_tree(y_tree)
+
+        def show_error_message(title, message):
+            error_message = QMessageBox()
+            error_message.setWindowTitle(title)
+            error_message.setText(message)
+            error_message.exec_()
+
+        if valid_x != None:
+            show_error_message('Configuration error', valid_x)
+            return None
+        if valid_y != None:
+            show_error_message('Configuration error', valid_y)
+            return None
+
         x_samples = calc_selector_tree(x_tree)
         y_samples = calc_selector_tree(y_tree)
         print('calc done')

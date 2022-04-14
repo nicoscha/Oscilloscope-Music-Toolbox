@@ -171,7 +171,7 @@ def span_path(image, cp_uu, crosspoints, path_color, path_found, debug=False):
         for _ in range(25000):
             # print('new')
             if True:
-                lower_grid_size = 7
+                lower_grid_size = 3  # 3 or above
                 upper_grid_size = 27
                 # for gs in range(3, 11+1, 2):
                 t_start_y, t_start_x, stuck, way = expanding_grid_search(image,
@@ -401,6 +401,7 @@ def scale_audio_to_fps(x_samples: numpy.array, y_samples: numpy.array, fps: int 
     x_target_samples = numpy.zeros(samples_per_frame)
     y_target_samples = numpy.zeros(samples_per_frame)
     if len(x_samples) < samples_per_frame:  # Up sampling
+        """
         factor = samples_per_frame / len(x_samples)
         t_x = []
         t_y = []
@@ -417,37 +418,49 @@ def scale_audio_to_fps(x_samples: numpy.array, y_samples: numpy.array, fps: int 
         x_target_samples = t_x
         y_target_samples = t_y
         """
-        factor = int(samples_per_frame / len(x_samples)) + 1
-        for i in range(1, samples_per_frame, factor):
-            x_target_samples[i] = x_samples[i // factor]
-            y_target_samples[i] = y_samples[i // factor]
+        #"""
+        factor = samples_per_frame / len(x_samples)
+        for i in range(1, samples_per_frame):
+            try:
+                _i = int(round(i / factor))
+                x_target_samples[i] = x_samples[_i]
+                y_target_samples[i] = y_samples[_i]
+            except IndexError as E:
+                print('IndexError at i:', i, '_i:', _i)
+                break
+
 
         k = 21
         lp_filter = gen_low_pass(k, 0.25)
+        '''
         for i in range(8):
             x_target_samples = numpy.convolve(x_target_samples, lp_filter)
             y_target_samples = numpy.convolve(y_target_samples, lp_filter)
         for i in range(8):
             x_target_samples = trim_convolved(k, x_target_samples)
             y_target_samples = trim_convolved(k, y_target_samples)
+        '''
+        for i in range(2):
+            x_target_samples, y_target_samples = low_pass_filter(x_target_samples, y_target_samples, k)
 
         scale_factor = max(numpy.max(numpy.abs(x_target_samples)),
                            numpy.max(numpy.abs(y_target_samples)))
         x_target_samples = numpy.divide(x_target_samples, scale_factor)
         y_target_samples = numpy.divide(y_target_samples, scale_factor)
-        """
+        #"""
     elif len(x_samples) > samples_per_frame:  # Down sampling
         factor = 1 / (samples_per_frame / len(x_samples)) + 1
         k = 21
-        lp_filter = gen_low_pass(k, 0.25)
+
+        lp_filter = gen_low_pass(k, 0.01)
         x_filtered_samples = numpy.convolve(x_samples, lp_filter)
         y_filtered_samples = numpy.convolve(y_samples, lp_filter)
         x_trimmed_samples = trim_convolved(k, x_filtered_samples)
         y_trimmed_samples = trim_convolved(k, y_filtered_samples)
-        #for i in range(len(target_samples)):
-        #    target_samples[i] = trimmed_samples[int(min(i * factor, len(target_samples)))]
+
         x_target_samples = x_trimmed_samples[::int(factor)]
         y_target_samples = y_trimmed_samples[::int(factor)]
+
         scale_factor = max(numpy.max(numpy.abs(x_target_samples)),
                            numpy.max(numpy.abs(y_target_samples)))
         x_target_samples = numpy.divide(x_target_samples, scale_factor)
