@@ -6,7 +6,7 @@ from PyQt5.QtCore import QDate, Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QStandardItemModel, QPixmap
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
-from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
 from collections import namedtuple, OrderedDict
 import csv
@@ -302,27 +302,6 @@ class Selector(QHBoxLayout):
 
 gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
            'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
-
-
-def split(uu_h_l_tree: list[tuple[str, int, int]]) -> list[list[tuple[str, int, int]]]:
-    max_l = max([l for (uu, h, l) in uu_h_l_tree])
-    for i_l in range(0, max_l + 1):
-        level_list = [(uu, h, l) for (uu, h, l) in uu_h_l_tree if l == i_l]
-        level_split_list = []
-        t_h = []
-        for i_s in range(len(level_list)+1):
-            h = level_list[i_s][1]
-            t_h.append(level_list[i_s])
-            try:
-                h_next = level_list[i_s+1][1]
-                if h + 1 != h_next:
-                    level_split_list.append(t_h)
-                    t_h = []
-            except IndexError:
-                level_split_list.append(t_h)
-                t_h = []
-                break
-        yield level_split_list
 
 
 def calc_signal(param) -> list[float]:
