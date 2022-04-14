@@ -223,6 +223,8 @@ class Selector(QHBoxLayout):
         self.clip_box.setValue(clip)
         self.clip_box.valueChanged.connect(self.update_parameters)
 
+        self.end_spacer = QSpacerItem(0, 0, hPolicy=QSizePolicy.Expanding)
+
         self.update_parameters()
         self.level_buttons.level_changed.connect(self.update_spacer)
         self.level_buttons.level_changed.connect(self.adjust_enabled_on_operator_combo_box)
@@ -237,6 +239,7 @@ class Selector(QHBoxLayout):
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
         self.addWidget(self.clip_box)
+        self.addSpacerItem(self.end_spacer)
 
         self.update_spacer()
 
