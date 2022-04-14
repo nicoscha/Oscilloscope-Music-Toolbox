@@ -223,9 +223,15 @@ class Selector(QHBoxLayout):
         self.clip_box.setValue(clip)
         self.clip_box.valueChanged.connect(self.update_parameters)
 
+        self.delete_button = QPushButton('x')
+        self.delete_button.setToolTip('delete line')
+        self.delete_button.setMaximumWidth(15)
+        #self.delete_button.clicked.connect(self.remove)
+
         self.end_spacer = QSpacerItem(0, 0, hPolicy=QSizePolicy.Expanding)
 
         self.update_parameters()
+        # Events
         self.level_buttons.level_changed.connect(self.update_spacer)
         self.level_buttons.level_changed.connect(self.adjust_enabled_on_operator_combo_box)
         self.level_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
@@ -239,6 +245,7 @@ class Selector(QHBoxLayout):
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
         self.addWidget(self.clip_box)
+        self.addWidget(self.delete_button)
         self.addSpacerItem(self.end_spacer)
 
         self.update_spacer()
@@ -289,6 +296,7 @@ class Selector(QHBoxLayout):
         self.frequency_spin_box.deleteLater()
         self.offset_spin_box.deleteLater()
         self.clip_box.deleteLater()
+        self.delete_button.deleteLater()
         del parameters[self.uu]
 
 
