@@ -8,7 +8,7 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
 from typing import Callable, List, Union
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import csv
 import warnings
 
@@ -26,7 +26,7 @@ from omt_utils import add, clip, gen_sin, gen_cos, gen_sawtooth, gen_triangle, g
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
 parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side level hierarchy')
-parameters = {}
+parameters = OrderedDict()
 
 
 def show_load_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
@@ -293,123 +293,143 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
            'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
 
 
-def calc() -> tuple[list, list]:
-    print('calc start')
-    x_samples = []
-    y_samples = []
+def split(uu_h_l_tree: list[tuple[str, int, int]]) -> list[list[tuple[str, int, int]]]:
+    max_l = max([l for (uu, h, l) in uu_h_l_tree])
+    for i_l in range(0, max_l + 1):
+        level_list = [(uu, h, l) for (uu, h, l) in uu_h_l_tree if l == i_l]
+        level_split_list = []
+        t_h = []
+        for i_s in range(len(level_list)+1):
+            h = level_list[i_s][1]
+            t_h.append(level_list[i_s])
+            try:
+                h_next = level_list[i_s+1][1]
+                if h + 1 != h_next:
+                    level_split_list.append(t_h)
+                    t_h = []
+            except IndexError:
+                level_split_list.append(t_h)
+                t_h = []
+                break
+        yield level_split_list
 
-    raw_signals = {}
 
-    # Generate samples for all basic functions (excludes comb)
-    for uu, param in parameters.items():
-        if param.function == 'comb':
+def calc_signal(param) -> list[float]:
+    if param.function == 'comb':
+        raise ValueError
+    f = param.frequency
+    # Signal
+    signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
+    # Amplitude
+    if param.amplitude != 1.0:
+        samples = scale(signal, param.amplitude)
+    else:
+        samples = signal
+    # Offset
+    if param.offset != 0:
+        samples = offset(samples, param.offset)
+    # Clip
+    if param.clip != 1.0:
+        samples = clip(samples, param.clip)
+    return samples
+
+
+def combine(signal_list: list[tuple[list, str]]) -> list[float]:
+    """ Combine list of signals
+    :param signal_list: [(signal, uuid)]
+    :return: combined signal
+    """
+    t_signal = signal_list[0][0]  # Load first signal
+    for signal, _uu in signal_list[1:]:
+        operator = parameters[_uu].operator
+        if operator == '+':
+            t_signal = add(signal, t_signal)
+        elif operator == '*':
+            t_signal = multiply(signal, t_signal)
+    return t_signal
+
+
+def calc_comb(param, signal: list) -> list[float]:
+    # Amplitude
+    if param.amplitude != 1.0:
+        signal = scale(signal, param.amplitude)
+    # Offset
+    if param.offset != 0:
+        signal = offset(signal, param.offset)
+    # Clip
+    if param.clip != 1.0:
+        signal = clip(signal, param.clip)
+    return signal
+
+
+test_tree = [('a_', 0, 0), ('b_', 1, 1), ('c', 2, 2), ('d_', 3, 1), ('e', 4, 2),
+             ('f', 5, 2), ('g', 6, 0), ('h_', 7, 0), ('i', 8, 1), ('j', 9, 1)]
+
+
+def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]]):
+    h_list = [(None, None, None)] * len(tree)
+    target_comb_index = None
+    for (i, (uu, h, l)) in enumerate(tree):
+        if l != level:
+            target_comb_index = None
             continue
-        f = param.frequency
-        # Signal
-        signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
-        # Amplitude
-        if param.amplitude != 1.0:
-            samples = scale(signal, param.amplitude)
         else:
-            samples = signal
-        # Offset
-        if param.offset != 0:
-            samples = offset(samples, param.offset)
-        # Clip
-        if param.clip != 1.0:
-            samples = clip(samples, param.clip)
-        raw_signals[uu] = samples
+            if target_comb_index == None:  # New part to combine
+                target_comb_index = i - 1
+        param = parameters[uu]
+        if param.function != 'comb':
+            signal = calc_signal(param)
+            h_list[h] = (signal, uu, target_comb_index)
+        else:
+            h_list[h] = (None, uu, target_comb_index)
+    return h_list
 
-    for side in ['x', 'y']:
-        params_values_filtered = [v for v in parameters.values() if v.side == side]
-        params_items_filtered = [i for i in parameters.items() if i[1].side == side]
-        max_level = max([param.level for param in params_values_filtered])
-        max_hierarchy = max([param.hierarchy for param in params_values_filtered])
-        sorted_uu_params = sorted(params_items_filtered, key=lambda _: _[1].hierarchy)
-        for level in range(max_level - 1, -1, -1):  # level -1 because the lowest level can not contain comb signals(doesn't make sens if it could)
-            # print('Level:', level)
-            params_with_same_level = [p for p in sorted_uu_params if p[1].level == level]
-            for (uu, param) in params_with_same_level:
-                # print(f'   Signal/Hierarchy/Level: {param.function:<4}', str(param.hierarchy), str(param.level))
-                if param.function == 'comb':
-                    last_signal_in_comb_tree = None
 
-                    range_hierarchy_til_end = range(param.hierarchy + 1, max_hierarchy + 1)
-                    for t_hierarchy in range_hierarchy_til_end:
-                        # print('      ', t_hierarchy)
-                        if sorted_uu_params[t_hierarchy][1].level >= (level + 1):  # (param.level + 1)
-                            last_signal_in_comb_tree = t_hierarchy
-                        else:
-                            # Next Path
-                            # print('break on', t_hierarchy)
-                            break
-                        print('         Last sig', last_signal_in_comb_tree)
+def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list):
+    c_list = [None] * len(tree)
+    combinations_on_level = [(uu, h, l) for (uu, h, l) in tree
+                             if parameters[uu].function == 'comb'
+                             and l == level]
+    for comb_uu, h, _level in combinations_on_level:
+        signals_with_comb_index = [(signal, uu) for (signal, uu, target_comb_index) in h_list if target_comb_index == h]#
+        if len(signals_with_comb_index) > 0:
+            combined_signal = combine(signals_with_comb_index)
+            c_list[h] = calc_comb(parameters[comb_uu], combined_signal)
+    return c_list
 
-                    if last_signal_in_comb_tree == None:
-                        # print(f'Warning: hierarchy {param.hierarchy} empty')
-                        raw_signals[uu] = [1]  # evade calc error
-                        continue
 
-                    # Next signal has different level -> calc this path and save to comb then break
-                    path_parameters = sorted_uu_params[param.hierarchy + 1:last_signal_in_comb_tree + 1]
-                    if len(path_parameters) == 1:
-                        uu_signal_in_path = path_parameters[0][0]
-                        raw_signals[uu] = raw_signals[uu_signal_in_path]
-                    else:
-                        first_uu_in_list = path_parameters[0][0]
-                        t_signal = raw_signals[first_uu_in_list]
-                        for _uu, operator in [(_uu, p.operator) for _uu, p in path_parameters[1:]]:
-                            signal_1 = raw_signals[_uu]
-                            if operator == '+':
-                                t_signal = add(signal_1, t_signal)
-                            elif operator == '*':
-                                t_signal = multiply(signal_1, t_signal)
-                        raw_signals[uu] = t_signal
-                    # print(f'         sigs in path: {path_parameters}')
-                    # Amplitude
-                    if param.amplitude != 1.0:
-                        raw_signals[uu] = scale(raw_signals[uu], param.amplitude)
-                    # Offset
-                    if param.offset != 0:
-                        raw_signals[uu] = offset(raw_signals[uu], param.offset)
-                    # Clip
-                    if param.clip != 1.0:
-                        raw_signals[uu] = clip(raw_signals[uu], param.clip)
+def collapse_tree(level: int, tree: list[tuple[str, int, int]], c_list) -> tuple[list[tuple[str, int, int]], list]:
+    # Chop of highest tree level
+    t_tree = []
+    t_signals = []
+    for i, ((uu, h_index, l_index), c_signal) in enumerate(zip(tree, c_list)):
+        if l_index < level:
+            t_tree.append((uu, len(t_tree), l_index))
+            t_signals.append(c_signal)
+            continue
+    return t_tree, t_signals
 
-                    break
-        del params_values_filtered
-        del params_items_filtered
 
-        # Add/Multiply on level 0
-        level_0 = [_ for _ in sorted_uu_params if _[1].level == 0]
-        # print(level_0)
-        t_signal = raw_signals[level_0[0][0]]
-        for _uu, operator in [(_uu, p.operator) for _uu, p in level_0[1:]]:
-            # print('First level')
-            signal_1 = raw_signals[_uu]
-            if operator == '+':
-                t_signal = add(signal_1, t_signal)
-            elif operator == '*':
-                t_signal = multiply(signal_1, t_signal)
+def calc_selector_tree(tree: list[tuple[str, int, int]]):
+    t_tree = tree
+    t_signals = None
+    for _l in reversed(range(1, 1 + max([_l for (_, _, _l) in tree]))):
+        hierarchy_list = calc_signal_one_level(_l, t_tree)
+        if t_signals:  # Merge signals with last combination
+            hierarchy_list = [h_l if h_l[0] != None else (t_s, h_l[1], h_l[2])  # h_l[0] == signal
+                              for (h_l, t_s) in zip(hierarchy_list, t_signals)]
+        combined_list = combine_one_level(_l - 1, t_tree, hierarchy_list)
+        t_tree, t_signals = collapse_tree(_l, t_tree, combined_list)
 
-        if side == 'x':
-            x_samples = t_signal
-        elif side == 'y':
-            y_samples = t_signal
-
-    for uu, sig in raw_signals.items():
-        print(uu, len(sig))
-
-    # Check for for to large values
-    if max(x_samples) > 1.0 or min(x_samples) < -1.0:
-        warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
-        x_samples = clip(x_samples, 1.0)
-    if max(y_samples) > 1.0 or min(y_samples) < -1.0:
-        warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
-        y_samples = clip(y_samples, 1.0)
-
-    print('calc done')
-    return x_samples, y_samples
+    # Top Level
+    hierarchy_list = calc_signal_one_level(0, t_tree)
+    if t_signals:
+        t_signals = [h_l if h_l[0] != None else (t_s, h_l[1], h_l[2])
+                     for (h_l, t_s) in zip(hierarchy_list, t_signals)]
+    else:  #' no combs in tree'
+        t_signals = hierarchy_list
+    top = combine([(signal, uu) for (signal, uu, _l) in t_signals])
+    return top
 
 
 class XYLayout(QVBoxLayout):
@@ -680,7 +700,20 @@ class GUI(QWidget):
                 writer.writerow(data)
 
     def start(self) -> None:
-        x_samples, y_samples = calc()
+        print('calc start')
+        x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'x']
+        y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'y']
+        x_samples = calc_selector_tree(x_tree)
+        y_samples = calc_selector_tree(y_tree)
+        print('calc done')
+
+        # Check for for to large values
+        if max(x_samples) > 1.0 or min(x_samples) < -1.0:
+            warnings.warn('X samples to big to convert, samples will be rerendered with clipping')
+            x_samples = clip(x_samples, 1.0)
+        if max(y_samples) > 1.0 or min(y_samples) < -1.0:
+            warnings.warn('Y samples to big to convert, samples will be rerendered with clipping')
+            y_samples = clip(y_samples, 1.0)
         write(x_samples, y_samples, sample_rate=SAMPLE_RATE)
 
         if not matplotlib_missing:
