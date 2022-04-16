@@ -286,6 +286,17 @@ class Selector(QHBoxLayout):
         self.spacer.changeSize(50 * self.level, 0)
         self.invalidate()
 
+    def delete(self) -> None:
+        """Implements functionality of the delete button"""
+        number_selectors = len([None for p in parameters.values() if p.side == self.side])
+        if number_selectors > 1:
+            self.remove()
+            self.hierarchy_changed.emit((self.uu, 999, 999))
+            import pprint
+            pprint.pprint(parameters)
+        else:
+            show_error_message('Deletion error', 'Can\'t delete only remaining selector')
+
     def remove(self) -> None:
         self.level_buttons.remove()
         self.level_buttons.deleteLater()
@@ -499,20 +510,26 @@ class XYLayout(QVBoxLayout):
         change = changed_selector[2]  # +1 or -1
         new_index = changed_selector_hierarchy + change
 
-        new_h = [None] * len(_parameters)
-        for uu, param in _parameters:
-            if uu != changed_selector_uu:
-                old_index = param.hierarchy
-                if old_index < new_index:
-                    new_h[old_index] = (uu, param)
-                elif old_index > new_index:
-                    new_h[old_index] = (uu, param)
-                elif old_index == new_index:
-                    t_param = param._replace(hierarchy=old_index - change)
-                    new_h[old_index - change] = (uu, t_param)
-            else:
-                new_param = param._replace(hierarchy=new_index)
-                new_h[new_index] = (uu, new_param)
+        new_h = [('', None)] * len(_parameters)
+
+        if change == 999:  # Rearrange selector after deletion
+            for i, (uu, param) in enumerate(_parameters):
+                t_param = param._replace(hierarchy=i)
+                new_h[i] = (uu, t_param)
+        else:  # Rearrange selector after hierarchy change
+            for uu, param in _parameters:
+                if uu != changed_selector_uu:
+                    old_index = param.hierarchy
+                    if old_index < new_index:
+                        new_h[old_index] = (uu, param)
+                    elif old_index > new_index:
+                        new_h[old_index] = (uu, param)
+                    elif old_index == new_index:
+                        t_param = param._replace(hierarchy=old_index - change)
+                        new_h[old_index - change] = (uu, t_param)
+                else:
+                    new_param = param._replace(hierarchy=new_index)
+                    new_h[new_index] = (uu, new_param)
 
         # Build new selectors
         for (uu, param) in new_h:
