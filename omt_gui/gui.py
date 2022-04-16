@@ -1,13 +1,12 @@
 import math
 import os
 from os import remove
-from functools import partial
-from PyQt5.QtCore import QDate, Qt, pyqtSignal, QUrl
-from PyQt5.QtGui import QStandardItemModel, QPixmap
+from PyQt5.QtCore import Qt, pyqtSignal, QUrl
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
-from typing import Callable, List, Union
+from typing import Union
 from collections import namedtuple, OrderedDict
 import csv
 import warnings
@@ -158,8 +157,10 @@ class LevelButtons(QHBoxLayout):
 class Selector(QHBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu: str, side: str, signal=None, operator='*', amplitude: float = 1.0,
-              frequency: float = 400, offset: float = 0.0, clip: float = 1.0, level: int = 0, hierarchy=None) -> None:
+    def build(self, uu: str, side: str, signal=None, operator='*',
+              amplitude: float = 1.0, frequency: float = 400,
+              offset: float = 0.0, clip: float = 1.0, level: int = 0,
+              hierarchy=None) -> None:
         self.uu = uu
         self.side = side
 
@@ -167,7 +168,8 @@ class Selector(QHBoxLayout):
         if hierarchy:
             self.hierarchy = hierarchy
         else:
-            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values() if _.side == self.side]
+            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values()
+                                        if _.side == self.side]
             if hierarchies_on_this_side:
                 self.hierarchy = max(hierarchies_on_this_side) + 1
             else:
@@ -263,8 +265,9 @@ class Selector(QHBoxLayout):
         else:
             self.frequency_spin_box.setEnabled(True)
 
-        self.parameter = parameter(operator=operator, amplitude=amplitude, function=signal,
-                                   frequency=frequency, offset=offset, clip=clip, side=self.side,
+        self.parameter = parameter(operator=operator, amplitude=amplitude,
+                                   function=signal, frequency=frequency,
+                                   offset=offset, clip=clip, side=self.side,
                                    level=self.level, hierarchy=self.hierarchy)
         parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
@@ -292,8 +295,6 @@ class Selector(QHBoxLayout):
         if number_selectors > 1:
             self.remove()
             self.hierarchy_changed.emit((self.uu, 999, 999))
-            import pprint
-            pprint.pprint(parameters)
         else:
             show_error_message('Deletion error', 'Can\'t delete only remaining selector')
 
@@ -425,7 +426,8 @@ def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list):
                              if parameters[uu].function == 'comb'
                              and l == level]
     for comb_uu, h, _level in combinations_on_level:
-        signals_with_comb_index = [(signal, uu) for (signal, uu, target_comb_index) in h_list if target_comb_index == h]#
+        signals_with_comb_index = [(signal, uu) for (signal, uu, target_comb_index)
+                                   in h_list if target_comb_index == h]
         if len(signals_with_comb_index) > 0:
             combined_signal = combine(signals_with_comb_index)
             c_list[h] = calc_comb(parameters[comb_uu], combined_signal)
@@ -460,7 +462,7 @@ def calc_selector_tree(tree: list[tuple[str, int, int]]):
     if t_signals:
         t_signals = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])
                      for (h_l, t_s) in zip(hierarchy_list, t_signals)]
-    else:  #' no combs in tree'
+    else:  # No combs in tree
         t_signals = hierarchy_list
     top = combine([(signal, uu) for (signal, uu, _l) in t_signals])
     return top
@@ -537,8 +539,8 @@ class XYLayout(QVBoxLayout):
 
             s = Selector()
             s.build(uu=uu, side=side, signal=signal, operator=operator,
-                    amplitude=amplitude, frequency=frequency, offset=offset, clip=clip,
-                    level=level, hierarchy=hierarchy)
+                    amplitude=amplitude, frequency=frequency, offset=offset,
+                    clip=clip, level=level, hierarchy=hierarchy)
 
             self.add_selector(selector=s)
 
@@ -595,7 +597,7 @@ class ImageDisplay(QCheckBox):
         main_widget.setLayout(main_layout)
         return main_widget
 
-    def refresh_image(self, x_samples: List, y_samples: List) -> None:
+    def refresh_image(self, x_samples: list, y_samples: list) -> None:
         if not self.ffmpeg_available:
             file_name = 'temp_' + str(uuid4()) + '.png'
             omt_image_utils.convert_audio_to_image((x_samples, y_samples), file_name=file_name)
@@ -740,10 +742,12 @@ class GUI(QWidget):
         with open(file_path, 'w') as file:
             print(parameters)
             writer = csv.writer(file)
-            writer.writerow(('operator', 'amplitude', 'function', 'frequency', 'offset', 'clip', 'side', 'level', 'hierarchy', 'uu'))
+            writer.writerow(('operator', 'amplitude', 'function', 'frequency',
+                             'offset', 'clip', 'side', 'level', 'hierarchy',
+                             'uu'))
             for uu, p in parameters.items():
-                data = [p.operator, p.amplitude, p.function, p.frequency, p.offset, p.clip, p.side,
-                        p.level, p.hierarchy, uu]
+                data = [p.operator, p.amplitude, p.function, p.frequency,
+                        p.offset, p.clip, p.side, p.level, p.hierarchy, uu]
                 writer.writerow(data)
 
     def start(self) -> None:
