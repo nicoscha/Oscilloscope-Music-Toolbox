@@ -226,7 +226,7 @@ class Selector(QHBoxLayout):
         self.delete_button = QPushButton('x')
         self.delete_button.setToolTip('delete line')
         self.delete_button.setMaximumWidth(15)
-        #self.delete_button.clicked.connect(self.remove)
+        self.delete_button.clicked.connect(self.delete)
 
         self.end_spacer = QSpacerItem(0, 0, hPolicy=QSizePolicy.Expanding)
 
@@ -540,6 +540,13 @@ def set_samples(samples_str: str) -> None:
         SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
 
 
+def show_error_message(title, message):
+    error_message = QMessageBox()
+    error_message.setWindowTitle(title)
+    error_message.setText(message)
+    error_message.exec_()
+
+
 class ImageDisplay(QCheckBox):
     def __init__(self, parent=None):
         super(ImageDisplay, self).__init__(parent)
@@ -728,12 +735,6 @@ class GUI(QWidget):
         y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'y']
         valid_x = valid_tree(x_tree)
         valid_y = valid_tree(y_tree)
-
-        def show_error_message(title, message):
-            error_message = QMessageBox()
-            error_message.setWindowTitle(title)
-            error_message.setText(message)
-            error_message.exec_()
 
         if valid_x != None:
             show_error_message('Configuration error', valid_x)
