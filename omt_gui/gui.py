@@ -439,7 +439,7 @@ def calc_selector_tree(tree: list[tuple[str, int, int]]):
     for _l in reversed(range(1, 1 + max([_l for (_, _, _l) in tree]))):
         hierarchy_list = calc_signal_one_level(_l, t_tree)
         if t_signals:  # Merge signals with last combination
-            hierarchy_list = [h_l if h_l[0] != None else (t_s, h_l[1], h_l[2])  # h_l[0] == signal
+            hierarchy_list = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])  # h_l[0] == signal
                               for (h_l, t_s) in zip(hierarchy_list, t_signals)]
         combined_list = combine_one_level(_l - 1, t_tree, hierarchy_list)
         t_tree, t_signals = collapse_tree(_l, t_tree, combined_list)
@@ -447,7 +447,7 @@ def calc_selector_tree(tree: list[tuple[str, int, int]]):
     # Top Level
     hierarchy_list = calc_signal_one_level(0, t_tree)
     if t_signals:
-        t_signals = [h_l if h_l[0] != None else (t_s, h_l[1], h_l[2])
+        t_signals = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])
                      for (h_l, t_s) in zip(hierarchy_list, t_signals)]
     else:  #' no combs in tree'
         t_signals = hierarchy_list
