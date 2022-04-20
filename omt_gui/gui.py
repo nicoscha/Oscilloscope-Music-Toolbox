@@ -645,7 +645,6 @@ class GUI(QWidget):
         """
         Build the gui and connect all signals and slots
         """
-
         load_button = QPushButton()
         load_button.setToolTip('Load configuration file')
         load_button.setText('Load')
@@ -682,19 +681,30 @@ class GUI(QWidget):
         control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
 
-        # Add layouts to main widget
+        # x y widget
+        x_y_widget = self.build_x_y_widget()
+        main_tab = QTabWidget()
+        main_tab.addTab(x_y_widget, 'X_Y')
+
+        # main layout
         self.main_h_box = QVBoxLayout()
+        self.main_h_box.addWidget(main_tab)
+        self.main_h_box.addLayout(control_layout)
+        self.setLayout(self.main_h_box)
+
+    def build_x_y_widget(self) -> QWidget:
+        # Add layouts to main widget
         self.x_layout = XYLayout()
         self.x_layout.build('x')
         self.y_layout = XYLayout()
         self.y_layout.build('y')
-        self.x_y_layout = QHBoxLayout()
-        self.x_y_layout.addLayout(self.x_layout)
-        self.x_y_layout.addLayout(self.y_layout)
-        self.main_h_box.addLayout(self.x_y_layout)
-        self.main_h_box.addLayout(control_layout)
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addLayout(self.x_layout)
+        x_y_layout.addLayout(self.y_layout)
 
-        self.setLayout(self.main_h_box)
+        x_y_tab_widget = QWidget()
+        x_y_tab_widget.setLayout(x_y_layout)
+        return x_y_tab_widget
 
     def load(self) -> None:
         file_path = show_load_file_pop_up()
