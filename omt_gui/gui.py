@@ -1,5 +1,6 @@
 import math
 import os
+import typing
 from os import remove
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QPixmap
@@ -681,10 +682,14 @@ class GUI(QWidget):
         control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
 
-        # x y widget
-        x_y_widget = self.build_x_y_widget()
+        # x_y / filter tab
         main_tab = QTabWidget()
-        main_tab.addTab(x_y_widget, 'X_Y')
+        x_y_widget = self._build_x_y_widget()
+        main_tab.addTab(x_y_widget, 'Signals')
+        self.filter_legth = 0
+        self.filter_function: typing.Callable
+        filter_widget = self._build_filter_widget()
+        main_tab.addTab(filter_widget, 'Post-processing')
 
         # main layout
         self.main_h_box = QVBoxLayout()
@@ -692,7 +697,7 @@ class GUI(QWidget):
         self.main_h_box.addLayout(control_layout)
         self.setLayout(self.main_h_box)
 
-    def build_x_y_widget(self) -> QWidget:
+    def _build_x_y_widget(self) -> QWidget:
         # Add layouts to main widget
         self.x_layout = XYLayout()
         self.x_layout.build('x')
@@ -702,9 +707,32 @@ class GUI(QWidget):
         x_y_layout.addLayout(self.x_layout)
         x_y_layout.addLayout(self.y_layout)
 
-        x_y_tab_widget = QWidget()
-        x_y_tab_widget.setLayout(x_y_layout)
-        return x_y_tab_widget
+        x_y_widget = QWidget()
+        x_y_widget.setLayout(x_y_layout)
+        return x_y_widget
+
+    def _build_filter_widget(self) -> QWidget:
+        filter_layout = QVBoxLayout()
+        filter_layout.addWidget(QPushButton())
+
+        def ABC(*args):
+            self.filter_legth = 1
+            self.filter_function = args[0]
+            print(args)
+
+        for (name, function) in [('Binomial', omt_image_utils.average_filter), ('Low Pass', omt_image_utils.average_filter)]:
+            wrapper = lambda checked: ABC(function) if checked else None
+            filter_h_box = QHBoxLayout()
+            filter_check_box = QRadioButton()
+            filter_check_box.clicked.connect(wrapper)
+            filter_h_box.addWidget(filter_check_box)
+            filter_h_box.addWidget(QLabel(name))
+            #filter_h_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+            filter_layout.addLayout(filter_h_box)
+
+        filter_widget = QWidget()
+        filter_widget.setLayout(filter_layout)
+        return filter_widget
 
     def load(self) -> None:
         file_path = show_load_file_pop_up()
