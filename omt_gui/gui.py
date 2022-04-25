@@ -839,6 +839,10 @@ class GUI(QWidget):
                 hierarchy = int(description['hierarchy'])
 
                 s = Selector()
+                if side == 'x':
+                    s.add_parameters(self.x_parameters)
+                elif side == 'y':
+                    s.add_parameters(self.y_parameters)
                 s.build(uu=uu, side=side, signal=signal, operator=operator,
                         amplitude=amplitude, frequency=frequency, offset=offset,
                         clip=clip, level=level, hierarchy=hierarchy)
