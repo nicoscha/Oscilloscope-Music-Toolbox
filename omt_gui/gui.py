@@ -99,8 +99,7 @@ class HierarchyButtons(QVBoxLayout):
 
     def down_clicked(self) -> None:
         hierarchy = self.parameters[self.uu].hierarchy
-        own_side = self.parameters[self.uu].side
-        current_max = max([p.hierarchy for p in self.parameters.values() if p.side == own_side])
+        current_max = max([p.hierarchy for p in self.parameters.values()])
         if hierarchy < current_max:  # Arbitrary limit
             self.parameters[self.uu] = self.parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, +1))
@@ -171,10 +170,9 @@ class Selector(QHBoxLayout):
         if hierarchy:
             self.hierarchy = hierarchy
         else:
-            hierarchies_on_this_side = [_.hierarchy for _ in self.parameters.values()
-                                        if _.side == self.side]
-            if hierarchies_on_this_side:
-                self.hierarchy = max(hierarchies_on_this_side) + 1
+            hierarchies = [_.hierarchy for _ in self.parameters.values()]
+            if hierarchies:
+                self.hierarchy = max(hierarchies) + 1
             else:
                 self.hierarchy = 0
 
@@ -280,8 +278,7 @@ class Selector(QHBoxLayout):
 
     def adjust_enabled_on_operator_combo_box(self) -> None:
         # Deactivate operator for the first element in a hierarchy
-        h_and_l_on_side = [(p.hierarchy, p.level) for p in self.parameters.values()
-                           if self.side == p.side]
+        h_and_l_on_side = [(p.hierarchy, p.level) for p in self.parameters.values()]
         l_above = [l for (h, l) in h_and_l_on_side if self.hierarchy - 1 == h]
         if l_above:
             disable_operator = l_above[0] + 1 <= self.level
@@ -297,7 +294,7 @@ class Selector(QHBoxLayout):
 
     def delete(self) -> None:
         """Implements functionality of the delete button"""
-        number_selectors = len([None for p in self.parameters.values() if p.side == self.side])
+        number_selectors = len([None for p in self.parameters.values()])
         if number_selectors > 1:
             self.remove()
             self.hierarchy_changed.emit((self.uu, 999, 999))
@@ -330,8 +327,7 @@ class MorphSelector(QHBoxLayout):
         if hierarchy:
             self.hierarchy = hierarchy
         else:
-            hierarchies_on_this_side = [_.hierarchy for _ in self.parameters.values()
-                                        if _.side == self.side]
+            hierarchies_on_this_side = [_.hierarchy for _ in self.parameters.values()]
             if hierarchies_on_this_side:
                 self.hierarchy = max(hierarchies_on_this_side) + 1
             else:
@@ -379,7 +375,7 @@ class MorphSelector(QHBoxLayout):
 
     def delete(self) -> None:
         """Implements functionality of the delete button"""
-        number_selectors = len([None for p in merges.values() if p.side == self.side])
+        number_selectors = len([None for p in merges.values()])
         if number_selectors > 1:
             self.remove()
             self.hierarchy_changed.emit((self.uu, 999, 999))
@@ -588,9 +584,8 @@ class XYLayout(QVBoxLayout):
         # Remove all selectors on this side
         _parameters = []
         for uu in c_parameters:
-            if c_parameters[uu].side == self.side:
-                _parameters.append((uu, self.parameters[uu]))
-                self.remove_selector(uu)
+            _parameters.append((uu, self.parameters[uu]))
+            self.remove_selector(uu)
 
         # Order selectors
         changed_selector_uu = changed_selector[0]
@@ -876,8 +871,8 @@ class GUI(QWidget):
 
     def start(self) -> None:
         print('calc start')
-        x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.x_parameters.items() if p.side == 'x']
-        y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.y_parameters.items() if p.side == 'y']
+        x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.x_parameters.items()]
+        y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.y_parameters.items()]
         valid_x = valid_tree(x_tree, self.x_parameters)
         valid_y = valid_tree(y_tree, self.y_parameters)
 
