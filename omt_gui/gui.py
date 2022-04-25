@@ -21,12 +21,13 @@ except ImportError:
     matplotlib_missing = True
 
 from uuid import uuid4
-from omt_utils import add, clip, gen_sin, gen_cos, gen_sawtooth, gen_triangle, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
+from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_sawtooth, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
 parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side level hierarchy')
 parameters = OrderedDict()
+merges = OrderedDict()
 
 
 def show_load_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
@@ -313,6 +314,84 @@ class Selector(QHBoxLayout):
         del parameters[self.uu]
 
 
+class MorphSelector(QHBoxLayout):
+    hierarchy_changed = pyqtSignal(tuple)
+
+    def build(self, uu: str, side: str, signal=None, level: int = 0,
+              hierarchy=None) -> None:
+        self.uu = uu
+        self.side = side
+
+        self.level = level
+        if hierarchy:
+            self.hierarchy = hierarchy
+        else:
+            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values()
+                                        if _.side == self.side]
+            if hierarchies_on_this_side:
+                self.hierarchy = max(hierarchies_on_this_side) + 1
+            else:
+                self.hierarchy = 0
+
+        self.spacer = QSpacerItem(0, 0, vPolicy=QSizePolicy.Maximum)
+
+        self.level_buttons = LevelButtons()
+        self.level_buttons.build(self.uu)
+
+        self.file_1_button = QPushButton()
+        self.file_1_button.setText('Select File 1')
+        self.file_2_button = QPushButton()
+        self.file_2_button.setText('Select File 2')
+
+        self.delete_button = QPushButton('x')
+        self.delete_button.setToolTip('delete line')
+        self.delete_button.setMaximumWidth(15)
+        self.delete_button.clicked.connect(self.delete)
+
+        self.end_spacer = QSpacerItem(0, 0, hPolicy=QSizePolicy.Expanding)
+
+        self.update_merges()
+
+        self.addSpacerItem(self.spacer)
+        self.addLayout(self.level_buttons)
+        self.addWidget(self.file_1_button)
+        self.addWidget(self.file_2_button)
+        self.addWidget(self.delete_button)
+        self.addSpacerItem(self.end_spacer)
+
+        self.update_spacer()
+
+    def update_merges(self) -> None:
+        self.merge = parameter(operator=1, amplitude=1,
+                                   function=1, frequency=1,
+                                   offset=1, clip=clip, side=None,
+                                   level=self.level, hierarchy=self.hierarchy)
+        merges[self.uu] = self.merge
+
+    def update_spacer(self) -> None:
+        self.level = merges[self.uu].level
+        self.spacer.changeSize(50 * self.level, 0)
+        self.invalidate()
+
+    def delete(self) -> None:
+        """Implements functionality of the delete button"""
+        number_selectors = len([None for p in merges.values() if p.side == self.side])
+        if number_selectors > 1:
+            self.remove()
+            self.hierarchy_changed.emit((self.uu, 999, 999))
+        else:
+            show_error_message('Deletion error', 'Can\'t delete only remaining selector')
+
+    def remove(self) -> None:
+        self.level_buttons.remove()
+        self.level_buttons.deleteLater()
+        self.file_1_button.deleteLater()
+        self.file_2_button.deleteLater()
+
+        self.delete_button.deleteLater()
+        del merges[self.uu]
+
+
 gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
            'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
 
@@ -545,6 +624,28 @@ class XYLayout(QVBoxLayout):
 
             self.add_selector(selector=s)
 
+
+class MergeLayout(XYLayout):
+    def build(self, default_selector=True) -> None:
+
+        add_button = QPushButton()
+        add_button.setText(f'Add Merge')
+        add_button.clicked.connect(self.add_selector)
+
+        self.addWidget(add_button)
+        self.setAlignment(Qt.AlignTop)
+        if default_selector:
+            self.add_selector()
+
+    def add_selector(self, selector=None) -> None:
+        if selector:
+            _selector = selector
+        else:
+            _selector = MorphSelector()
+            uu = str(uuid4())
+            _selector.build(uu, side=None)
+        _selector.hierarchy_changed.connect(self.update_order)
+        self.addLayout(_selector)
 
 def set_sample_rate(sample_rate_str: str) -> None:
     global SAMPLE_RATE
