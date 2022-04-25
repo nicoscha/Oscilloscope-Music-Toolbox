@@ -810,10 +810,13 @@ class GUI(QWidget):
         x_y_widget.setLayout(x_y_layout)
         return x_y_widget
 
-    def load(self) -> None:
-        file_path = show_load_file_pop_up()
-        if not file_path:
-            return None
+    def load(self, path: str = '') -> None:
+        if path == '':
+            file_path = show_load_file_pop_up()
+            if not file_path:
+                return None
+        else:
+            file_path = path
 
         # clear x and y layout
         for selector in self.x_layout.findChildren(Selector):
@@ -906,3 +909,12 @@ class GUI(QWidget):
                 wav_img.refresh_image(x_samples, y_samples)
         del x_samples
         del y_samples
+
+
+def create_gui(*, path: str = ''):
+    root = GUI()
+    root.build()
+    if path != '':
+        root.load(path)
+    root.setWindowTitle('OMT-GUI ' + path)
+    return root
