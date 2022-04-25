@@ -783,14 +783,12 @@ class GUI(QWidget):
         control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
 
-        # x_y / filter tab
+        # x_y / merge tab
         main_tab = QTabWidget()
         x_y_widget = self._build_x_y_widget()
         main_tab.addTab(x_y_widget, 'Signals')
-        self.filter_legth = 0
-        self.filter_function: typing.Callable
-        filter_widget = self._build_filter_widget()
-        main_tab.addTab(filter_widget, 'Post-processing')
+        merge_widget = self._build_merge_widget()
+        main_tab.addTab(merge_widget, 'Merge')
 
         # main layout
         self.main_h_box = QVBoxLayout()
@@ -811,29 +809,6 @@ class GUI(QWidget):
         x_y_widget = QWidget()
         x_y_widget.setLayout(x_y_layout)
         return x_y_widget
-
-    def _build_filter_widget(self) -> QWidget:
-        filter_layout = QVBoxLayout()
-        filter_layout.addWidget(QPushButton())
-
-        def ABC(*args):
-            self.filter_legth = 1
-            self.filter_function = args[0]
-            print(args)
-
-        for (name, function) in [('Binomial', omt_image_utils.average_filter), ('Low Pass', omt_image_utils.average_filter)]:
-            wrapper = lambda checked: ABC(function) if checked else None
-            filter_h_box = QHBoxLayout()
-            filter_check_box = QRadioButton()
-            filter_check_box.clicked.connect(wrapper)
-            filter_h_box.addWidget(filter_check_box)
-            filter_h_box.addWidget(QLabel(name))
-            #filter_h_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-            filter_layout.addLayout(filter_h_box)
-
-        filter_widget = QWidget()
-        filter_widget.setLayout(filter_layout)
-        return filter_widget
 
     def load(self) -> None:
         file_path = show_load_file_pop_up()
