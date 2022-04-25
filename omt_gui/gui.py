@@ -26,7 +26,6 @@ from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
 parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side level hierarchy')
-parameters = OrderedDict()
 merges = OrderedDict()
 
 
@@ -73,8 +72,9 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 class HierarchyButtons(QVBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu) -> None:
+    def build(self, uu, _parameters) -> None:
         self.uu = uu
+        self.parameters = _parameters
         self.setSpacing(0)
 
         self.hierarchy_up = QPushButton('⯅')
@@ -92,17 +92,17 @@ class HierarchyButtons(QVBoxLayout):
         self.addWidget(self.hierarchy_down)
 
     def up_clicked(self) -> None:
-        hierarchy = parameters[self.uu].hierarchy
+        hierarchy = self.parameters[self.uu].hierarchy
         if hierarchy > 0:
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
+            self.parameters[self.uu] = self.parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, -1))
 
     def down_clicked(self) -> None:
-        hierarchy = parameters[self.uu].hierarchy
-        own_side = parameters[self.uu].side
-        current_max = max([p.hierarchy for p in parameters.values() if p.side == own_side])
+        hierarchy = self.parameters[self.uu].hierarchy
+        own_side = self.parameters[self.uu].side
+        current_max = max([p.hierarchy for p in self.parameters.values() if p.side == own_side])
         if hierarchy < current_max:  # Arbitrary limit
-            parameters[self.uu] = parameters[self.uu]._replace(hierarchy=None)
+            self.parameters[self.uu] = self.parameters[self.uu]._replace(hierarchy=None)
             self.hierarchy_changed.emit((self.uu, hierarchy, +1))
 
     def remove(self) -> None:
@@ -114,8 +114,9 @@ class LevelButtons(QHBoxLayout):
     level_changed = pyqtSignal()
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu) -> None:
+    def build(self, uu, _parameters) -> None:
         self.uu = uu
+        self.parameters = _parameters
         self.setSpacing(0)
 
         self.level_up = QPushButton('⯇')
@@ -127,7 +128,7 @@ class LevelButtons(QHBoxLayout):
         self.level_down.setMaximumWidth(15)
         self.level_down.clicked.connect(self.down_clicked)
         self.hierarchy_buttons = HierarchyButtons()
-        self.hierarchy_buttons.build(self.uu)
+        self.hierarchy_buttons.build(self.uu, self.parameters)
 
         self.addWidget(self.level_up)
         self.addLayout(self.hierarchy_buttons)
@@ -136,15 +137,15 @@ class LevelButtons(QHBoxLayout):
         self.hierarchy_buttons.hierarchy_changed.connect(self.hierarchy_changed.emit)
 
     def up_clicked(self) -> None:
-        if parameters[self.uu].level > 0:
-            level = parameters[self.uu].level
-            parameters[self.uu] = parameters[self.uu]._replace(level=level - 1)
+        if self.parameters[self.uu].level > 0:
+            level = self.parameters[self.uu].level
+            self.parameters[self.uu] = self.parameters[self.uu]._replace(level=level - 1)
             self.level_changed.emit()
 
     def down_clicked(self) -> None:
-        if parameters[self.uu].level <= 5:  # Arbitrary limit
-            level = parameters[self.uu].level
-            parameters[self.uu] = parameters[self.uu]._replace(level=level + 1)
+        if self.parameters[self.uu].level <= 5:  # Arbitrary limit
+            level = self.parameters[self.uu].level
+            self.parameters[self.uu] = self.parameters[self.uu]._replace(level=level + 1)
             self.level_changed.emit()
 
     def remove(self) -> None:
@@ -170,7 +171,7 @@ class Selector(QHBoxLayout):
         if hierarchy:
             self.hierarchy = hierarchy
         else:
-            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values()
+            hierarchies_on_this_side = [_.hierarchy for _ in self.parameters.values()
                                         if _.side == self.side]
             if hierarchies_on_this_side:
                 self.hierarchy = max(hierarchies_on_this_side) + 1
@@ -180,7 +181,7 @@ class Selector(QHBoxLayout):
         self.spacer = QSpacerItem(0, 0, vPolicy=QSizePolicy.Maximum)
 
         self.level_buttons = LevelButtons()
-        self.level_buttons.build(self.uu)
+        self.level_buttons.build(self.uu, self.parameters)
 
         self.operator_combo_box = QComboBox()
         self.operator_combo_box.setToolTip('Operation')
@@ -254,6 +255,9 @@ class Selector(QHBoxLayout):
 
         self.update_spacer()
 
+    def add_parameters(self, _parameters) -> None:
+        self.parameters = _parameters
+
     def update_parameters(self) -> None:
         operator = self.operator_combo_box.currentText()
         amplitude = round(self.amplitude_spin_box.value(), 2)
@@ -271,12 +275,12 @@ class Selector(QHBoxLayout):
                                    function=signal, frequency=frequency,
                                    offset=offset, clip=clip, side=self.side,
                                    level=self.level, hierarchy=self.hierarchy)
-        parameters[self.uu] = self.parameter
+        self.parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
 
     def adjust_enabled_on_operator_combo_box(self) -> None:
         # Deactivate operator for the first element in a hierarchy
-        h_and_l_on_side = [(p.hierarchy, p.level) for p in parameters.values()
+        h_and_l_on_side = [(p.hierarchy, p.level) for p in self.parameters.values()
                            if self.side == p.side]
         l_above = [l for (h, l) in h_and_l_on_side if self.hierarchy - 1 == h]
         if l_above:
@@ -287,13 +291,13 @@ class Selector(QHBoxLayout):
                 self.operator_combo_box.setEnabled(True)
 
     def update_spacer(self) -> None:
-        self.level = parameters[self.uu].level
+        self.level = self.parameters[self.uu].level
         self.spacer.changeSize(50 * self.level, 0)
         self.invalidate()
 
     def delete(self) -> None:
         """Implements functionality of the delete button"""
-        number_selectors = len([None for p in parameters.values() if p.side == self.side])
+        number_selectors = len([None for p in self.parameters.values() if p.side == self.side])
         if number_selectors > 1:
             self.remove()
             self.hierarchy_changed.emit((self.uu, 999, 999))
@@ -311,7 +315,7 @@ class Selector(QHBoxLayout):
         self.offset_spin_box.deleteLater()
         self.clip_box.deleteLater()
         self.delete_button.deleteLater()
-        del parameters[self.uu]
+        del self.parameters[self.uu]
 
 
 class MorphSelector(QHBoxLayout):
@@ -326,7 +330,7 @@ class MorphSelector(QHBoxLayout):
         if hierarchy:
             self.hierarchy = hierarchy
         else:
-            hierarchies_on_this_side = [_.hierarchy for _ in parameters.values()
+            hierarchies_on_this_side = [_.hierarchy for _ in self.parameters.values()
                                         if _.side == self.side]
             if hierarchies_on_this_side:
                 self.hierarchy = max(hierarchies_on_this_side) + 1
@@ -416,7 +420,7 @@ def calc_signal(param) -> list[float]:
     return samples
 
 
-def combine(signal_list: list[tuple[list, str]]) -> list[float]:
+def combine(signal_list: list[tuple[list, str]], parameters) -> list[float]:
     """ Combine list of signals
     :param signal_list: [(signal, uuid)]
     :return: combined signal
@@ -444,7 +448,7 @@ def calc_comb(param, signal: list) -> list[float]:
     return signal
 
 
-def valid_tree(tree: list[tuple[str, int, int]]) -> str:
+def valid_tree(tree: list[tuple[str, int, int]], parameters) -> str:
     tree_len = len(tree)
     side = parameters[tree[0][0]].side
     if tree_len == 1:
@@ -481,7 +485,7 @@ def valid_tree(tree: list[tuple[str, int, int]]) -> str:
                 return f'Comb on level {current_l + 1} in {side} can\'t be empty. Add a selector on lower level or remove comb.'
 
 
-def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]]):
+def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]], parameters):
     h_list = [(None, None, None)] * len(tree)
     target_comb_index = None
     for (i, (uu, h, l)) in enumerate(tree):
@@ -500,7 +504,7 @@ def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]]):
     return h_list
 
 
-def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list):
+def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list, parameters):
     c_list = [None] * len(tree)
     combinations_on_level = [(uu, h, l) for (uu, h, l) in tree
                              if parameters[uu].function == 'comb'
@@ -509,7 +513,7 @@ def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list):
         signals_with_comb_index = [(signal, uu) for (signal, uu, target_comb_index)
                                    in h_list if target_comb_index == h]
         if len(signals_with_comb_index) > 0:
-            combined_signal = combine(signals_with_comb_index)
+            combined_signal = combine(signals_with_comb_index, parameters)
             c_list[h] = calc_comb(parameters[comb_uu], combined_signal)
     return c_list
 
@@ -526,30 +530,30 @@ def collapse_tree(level: int, tree: list[tuple[str, int, int]], c_list) -> tuple
     return t_tree, t_signals
 
 
-def calc_selector_tree(tree: list[tuple[str, int, int]]):
+def calc_selector_tree(tree: list[tuple[str, int, int]], parameters):
     t_tree = tree
     t_signals = None
     for _l in reversed(range(1, 1 + max([_l for (_, _, _l) in tree]))):
-        hierarchy_list = calc_signal_one_level(_l, t_tree)
+        hierarchy_list = calc_signal_one_level(_l, t_tree, parameters)
         if t_signals:  # Merge signals with last combination
             hierarchy_list = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])  # h_l[0] == signal
                               for (h_l, t_s) in zip(hierarchy_list, t_signals)]
-        combined_list = combine_one_level(_l - 1, t_tree, hierarchy_list)
+        combined_list = combine_one_level(_l - 1, t_tree, hierarchy_list, parameters)
         t_tree, t_signals = collapse_tree(_l, t_tree, combined_list)
 
     # Top Level
-    hierarchy_list = calc_signal_one_level(0, t_tree)
+    hierarchy_list = calc_signal_one_level(0, t_tree, parameters)
     if t_signals:
         t_signals = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])
                      for (h_l, t_s) in zip(hierarchy_list, t_signals)]
     else:  # No combs in tree
         t_signals = hierarchy_list
-    top = combine([(signal, uu) for (signal, uu, _l) in t_signals])
+    top = combine([(signal, uu) for (signal, uu, _l) in t_signals], parameters)
     return top
 
 
 class XYLayout(QVBoxLayout):
-    def build(self, side, default_selector=True) -> None:
+    def build(self, side, _parameters, default_selector=True) -> None:
         self.side = side
 
         add_button = QPushButton()
@@ -558,6 +562,7 @@ class XYLayout(QVBoxLayout):
 
         self.addWidget(add_button)
         self.setAlignment(Qt.AlignTop)
+        self.parameters = _parameters
         if default_selector:
             self.add_selector()
 
@@ -567,6 +572,7 @@ class XYLayout(QVBoxLayout):
         else:
             _selector = Selector()
             uu = str(uuid4())
+            _selector.add_parameters(self.parameters)
             _selector.build(uu, side=self.side)
         _selector.hierarchy_changed.connect(self.update_order)
         self.addLayout(_selector)
@@ -578,12 +584,12 @@ class XYLayout(QVBoxLayout):
                 child.deleteLater()
 
     def update_order(self, changed_selector: tuple[str, int, int]):
-        c_parameters = parameters.copy()
+        c_parameters = self.parameters.copy()
         # Remove all selectors on this side
         _parameters = []
         for uu in c_parameters:
             if c_parameters[uu].side == self.side:
-                _parameters.append((uu, parameters[uu]))
+                _parameters.append((uu, self.parameters[uu]))
                 self.remove_selector(uu)
 
         # Order selectors
@@ -618,6 +624,7 @@ class XYLayout(QVBoxLayout):
             (operator, amplitude, signal, frequency, offset, clip, side, level, hierarchy) = param
 
             s = Selector()
+            s.add_parameters(self.parameters)
             s.build(uu=uu, side=side, signal=signal, operator=operator,
                     amplitude=amplitude, frequency=frequency, offset=offset,
                     clip=clip, level=level, hierarchy=hierarchy)
@@ -647,6 +654,7 @@ class MergeLayout(XYLayout):
         _selector.hierarchy_changed.connect(self.update_order)
         self.addLayout(_selector)
 
+
 def set_sample_rate(sample_rate_str: str) -> None:
     global SAMPLE_RATE
     SAMPLE_RATE = int(float(sample_rate_str.replace('k Hz', '')) * 1000)
@@ -655,7 +663,7 @@ def set_sample_rate(sample_rate_str: str) -> None:
 def set_samples(samples_str: str) -> None:
     global SAMPLES
     if samples_str == 'calc lcm':
-        SAMPLES = int(SAMPLE_RATE / math.lcm(*[int(p.frequency) for p in parameters.values()]))
+        SAMPLES = 48000 #int(SAMPLE_RATE / math.lcm(*[int(p.frequency) for p in parameters.values()]))
         print('lcm of', SAMPLES, 'samples')
     else:
         SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
@@ -783,25 +791,22 @@ class GUI(QWidget):
         control_layout.addWidget(duration)
         control_layout.addWidget(start_button)
 
-        # x_y / merge tab
-        main_tab = QTabWidget()
         x_y_widget = self._build_x_y_widget()
-        main_tab.addTab(x_y_widget, 'Signals')
-        merge_widget = self._build_merge_widget()
-        main_tab.addTab(merge_widget, 'Merge')
 
         # main layout
         self.main_h_box = QVBoxLayout()
-        self.main_h_box.addWidget(main_tab)
+        self.main_h_box.addWidget(x_y_widget)
         self.main_h_box.addLayout(control_layout)
         self.setLayout(self.main_h_box)
 
     def _build_x_y_widget(self) -> QWidget:
         # Add layouts to main widget
         self.x_layout = XYLayout()
-        self.x_layout.build('x')
+        self.x_parameters = OrderedDict()
+        self.x_layout.build('x', self.x_parameters)
         self.y_layout = XYLayout()
-        self.y_layout.build('y')
+        self.y_parameters = OrderedDict()
+        self.y_layout.build('y', self.y_parameters)
         x_y_layout = QHBoxLayout()
         x_y_layout.addLayout(self.x_layout)
         x_y_layout.addLayout(self.y_layout)
@@ -854,22 +859,27 @@ class GUI(QWidget):
             return None
 
         with open(file_path, 'w') as file:
-            print(parameters)
+            print(self.x_parameters)
+            print(self.y_parameters)
             writer = csv.writer(file)
             writer.writerow(('operator', 'amplitude', 'function', 'frequency',
                              'offset', 'clip', 'side', 'level', 'hierarchy',
                              'uu'))
-            for uu, p in parameters.items():
+            for uu, p in self.x_parameters.items():
+                data = [p.operator, p.amplitude, p.function, p.frequency,
+                        p.offset, p.clip, p.side, p.level, p.hierarchy, uu]
+                writer.writerow(data)
+            for uu, p in self.y_parameters.items():
                 data = [p.operator, p.amplitude, p.function, p.frequency,
                         p.offset, p.clip, p.side, p.level, p.hierarchy, uu]
                 writer.writerow(data)
 
     def start(self) -> None:
         print('calc start')
-        x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'x']
-        y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in parameters.items() if p.side == 'y']
-        valid_x = valid_tree(x_tree)
-        valid_y = valid_tree(y_tree)
+        x_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.x_parameters.items() if p.side == 'x']
+        y_tree = [(uu, p.hierarchy, p.level) for (uu, p) in self.y_parameters.items() if p.side == 'y']
+        valid_x = valid_tree(x_tree, self.x_parameters)
+        valid_y = valid_tree(y_tree, self.y_parameters)
 
         if valid_x != None:
             show_error_message('Configuration error', valid_x)
@@ -878,8 +888,8 @@ class GUI(QWidget):
             show_error_message('Configuration error', valid_y)
             return None
 
-        x_samples = calc_selector_tree(x_tree)
-        y_samples = calc_selector_tree(y_tree)
+        x_samples = calc_selector_tree(x_tree, self.x_parameters)
+        y_samples = calc_selector_tree(y_tree, self.y_parameters)
         print('calc done')
 
         # Check for for to large values
