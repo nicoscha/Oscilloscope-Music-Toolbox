@@ -1,16 +1,17 @@
-import math
+from collections import namedtuple, OrderedDict
+import csv
 import os
-import typing
 from os import remove
+from typing import Union
+
+import warnings
+
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QLineEdit, QVBoxLayout, QWidget
-from typing import Union
-from collections import namedtuple, OrderedDict
-import csv
-import warnings
+
 
 import omt_image_utils
 
@@ -21,7 +22,7 @@ except ImportError:
     matplotlib_missing = True
 
 from uuid import uuid4
-from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_sawtooth, gen_rectangle, gen_x_over_y, offset, write, scale, multiply
+from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_sawtooth, gen_rectangle, gen_x_over_y, offset, write, read, scale, multiply
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
@@ -264,6 +265,7 @@ class Selector(QHBoxLayout):
         self.addWidget(self.offset_spin_box)
         self.addWidget(self.clip_box)
         if signal == 'file':
+            self.amplitude_spin_box.setVisible(False)
             self.frequency_spin_box.setVisible(False)
             self.offset_spin_box.setVisible(False)
             self.clip_box.setVisible(False)
@@ -318,7 +320,7 @@ class Selector(QHBoxLayout):
 
     def change_visible_widgets(self) -> None:
         if self.combo_box.currentText() == 'file':
-            #self.removeWidget(self.frequency_spin_box)
+            self.amplitude_spin_box.setVisible(False)
             self.frequency_spin_box.setVisible(False)
             self.offset_spin_box.setVisible(False)
             self.clip_box.setVisible(False)
@@ -331,6 +333,7 @@ class Selector(QHBoxLayout):
             self.file_select_button.setVisible(False)
             self.file_show_path_line_edit.setVisible(False)
 
+            self.amplitude_spin_box.setVisible(True)
             self.frequency_spin_box.setVisible(True)
             self.offset_spin_box.setVisible(True)
             self.clip_box.setVisible(True)
@@ -343,6 +346,10 @@ class Selector(QHBoxLayout):
             # TODO save relative path not absolute
             self.file = path
             self.file_show_path_line_edit.setText(path)
+
+            self.amplitude_spin_box.setValue(1.0)  # default will prevent calc
+            self.offset_spin_box.setValue(0.0)  # default will prevent calc
+            self.clip_box.setValue(1.0)  # default will prevent calc
             self.update_parameters()
 
     def delete(self) -> None:
@@ -671,13 +678,13 @@ class XYLayout(QVBoxLayout):
 
         # Build new selectors
         for (uu, param) in new_h:
-            (operator, amplitude, signal, frequency, offset, clip, side, level, hierarchy) = param
+            (operator, amplitude, signal, frequency, offset, clip, side, file, level, hierarchy) = param
 
             s = Selector()
             s.add_parameters(self.parameters)
             s.build(uu=uu, side=side, signal=signal, operator=operator,
                     amplitude=amplitude, frequency=frequency, offset=offset,
-                    clip=clip, level=level, hierarchy=hierarchy)
+                    clip=clip, file=file, level=level, hierarchy=hierarchy)
 
             self.add_selector(selector=s)
 
