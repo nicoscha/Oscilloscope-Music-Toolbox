@@ -1,4 +1,4 @@
-import basic_wave as bw
+from _old_py_scripts import basic_wave as bw
 import logging
 import simpleaudio
 import time

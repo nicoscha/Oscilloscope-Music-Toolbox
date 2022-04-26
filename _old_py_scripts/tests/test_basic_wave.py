@@ -1,5 +1,5 @@
 import unittest
-import basic_wave
+from _old_py_scripts import basic_wave
 from math import pi, tau, sin
 
 
@@ -21,7 +21,7 @@ class Modifier(unittest.TestCase):
 
     def test_init_duration_a_few_seconds(self):
         m = basic_wave.Modifier(duration=5)
-        self.assertEqual(5*basic_wave.FRAMERATE, m.duration_left)
+        self.assertEqual(5 * basic_wave.FRAMERATE, m.duration_left)
 
     def test_init_duration_to_affect_per_sample(self):
         # one sample
@@ -50,7 +50,7 @@ class Modifier(unittest.TestCase):
 
     def test_init_start_at_second_x(self):
         m = basic_wave.Modifier(start=5)
-        self.assertEqual(5*basic_wave.FRAMERATE, m.affected_sample)
+        self.assertEqual(5 * basic_wave.FRAMERATE, m.affected_sample)
 
     def test_init_duration_and_swap(self):
         with self.assertRaises(NotImplementedError):
@@ -122,10 +122,10 @@ class BasicWave(unittest.TestCase):
         # continues
         mod = basic_wave.Modifier(frequency=4.81, phi=5.16, magnitude=2.3,
                                   offset=4, start=0, duration=-1)
-        self.assertEqual(4.81/basic_wave.FRAMERATE, mod.frequency)
-        self.assertEqual(5.16/basic_wave.FRAMERATE, mod.phi)
-        self.assertEqual(2.3/basic_wave.FRAMERATE, mod.magnitude)
-        self.assertEqual(4/basic_wave.FRAMERATE, mod.offset)
+        self.assertEqual(4.81 / basic_wave.FRAMERATE, mod.frequency)
+        self.assertEqual(5.16 / basic_wave.FRAMERATE, mod.phi)
+        self.assertEqual(2.3 / basic_wave.FRAMERATE, mod.magnitude)
+        self.assertEqual(4 / basic_wave.FRAMERATE, mod.offset)
         self.assertEqual(0, mod.affected_sample)
         # single
         mod = basic_wave.Modifier(frequency=4.81, phi=5.16, magnitude=2.3,
@@ -208,7 +208,7 @@ class BasicWave(unittest.TestCase):
         a_w = basic_wave.BasicWave(frequency, phi=phi, magnitude=magnitude,
                                    offset=offset)
 
-        for t in range(1, int(basic_wave.FRAMERATE/frequency+1)):
+        for t in range(1, int(basic_wave.FRAMERATE / frequency + 1)):
             frame = (magnitude
                      * sin(((tau * frequency / basic_wave.FRAMERATE) * t)
                            + phi + pi / 2))

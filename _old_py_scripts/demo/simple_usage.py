@@ -1,6 +1,6 @@
 from math import pi
 import wave
-import basic_wave as bw
+from _old_py_scripts import basic_wave as bw
 
 E4 = 329.63
 B3 = 246.94
@@ -80,7 +80,7 @@ y_wave = bw.Wave([(AS2, pi / 2, 0.5, 0.0,
                     bw.Modifier(magnitude=0.0, start=1.25, swap=True), ])
                   ])
 
-with wave.open('circle_of_notes.wav', 'wb') as wav:
+with wave.open('../../demo/circle_of_notes.wav', 'wb') as wav:
     wav.setparams((CHANNELS, SAMPLEWIDTH, FRAMERATE, NFRAMES,
                    'NONE', 'not compressed'))
     frames = []
@@ -94,7 +94,7 @@ x_wave_1 = bw.Wave([(300, 0.0, 0.5, 0.0, [bw.Modifier(frequency=150),
                                                       start=2)])])
 y_wave_1 = bw.Wave([(300, 0.0, 0.5, 0.0)])
 
-with wave.open('gamma.wav', 'wb') as wav:
+with wave.open('../../demo/gamma.wav', 'wb') as wav:
     wav.setparams((CHANNELS, SAMPLEWIDTH, FRAMERATE, NFRAMES,
                    'NONE', 'not compressed'))
     frames = []
