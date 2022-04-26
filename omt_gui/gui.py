@@ -463,7 +463,22 @@ def calc_signal(param) -> list[float]:
         raise ValueError
     f = param.frequency
     # Signal
-    signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
+    if param.function == 'file':
+        sr, x_y_wav = read(param.file, norm=True)
+        if sr != SAMPLE_RATE:
+            warnings.warn(f'Sample rate of file: {param.file} does not match project setting')
+        if len(x_y_wav) != 2:
+            show_error_message('File error', f'{param.file} needs two audio channels')
+            return gen_sig['sin'](f, SAMPLE_RATE, SAMPLES)
+        if len(x_y_wav[0]) < SAMPLES:
+            show_error_message('Content error', f'{param.file} does not contain enough samples')
+            return gen_sig['sin'](f, SAMPLE_RATE, SAMPLES)
+        if param.side == 'x':
+            signal = x_y_wav[0][:SAMPLES]
+        else:
+            signal = x_y_wav[1][:SAMPLES]
+    else:
+        signal = gen_sig[param.function](f, SAMPLE_RATE, SAMPLES)
     # Amplitude
     if param.amplitude != 1.0:
         samples = scale(signal, param.amplitude)
