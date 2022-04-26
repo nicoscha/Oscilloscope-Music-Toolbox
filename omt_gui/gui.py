@@ -223,8 +223,7 @@ class Selector(QHBoxLayout):
         self.frequency_spin_box.setSingleStep(0.02)
         self.frequency_spin_box.setValue(frequency)
         self.frequency_spin_box.valueChanged.connect(self.update_parameters)
-        if signal == 'comb':
-            self.frequency_spin_box.setEnabled(False)
+        self.frequency_spin_box.setVisible(signal != 'comb')
 
         self.offset_spin_box = QDoubleSpinBox()
         self.offset_spin_box.setToolTip('Offset')
@@ -289,10 +288,7 @@ class Selector(QHBoxLayout):
         clip = round(self.clip_box.value(), 2)
         file = self.file
 
-        if signal == 'comb':
-            self.frequency_spin_box.setEnabled(False)
-        else:
-            self.frequency_spin_box.setEnabled(True)
+        self.frequency_spin_box.setVisible(signal != 'comb')
 
         self.parameter = parameter(operator=operator, amplitude=amplitude,
                                    function=signal, frequency=frequency,
