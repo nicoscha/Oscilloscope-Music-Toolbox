@@ -213,6 +213,7 @@ class Selector(QHBoxLayout):
         self.file_select_button.clicked.connect(self.select_file)
 
         self.file_show_path_line_edit = QLineEdit()
+        self.file_show_path_line_edit.setToolTip('Selected filepath ' + self.file)
         self.file_show_path_line_edit.setEnabled(False)
         if self.file:
             self.file_show_path_line_edit.setText(self.file)
@@ -336,6 +337,7 @@ class Selector(QHBoxLayout):
             # TODO save relative path not absolute
             self.file = path
             self.file_show_path_line_edit.setText(path)
+            self.file_show_path_line_edit.setToolTip('Selected filepath ' + self.file)
 
             self.amplitude_spin_box.setValue(1.0)  # default will prevent calc
             self.offset_spin_box.setValue(0.0)  # default will prevent calc
