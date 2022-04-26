@@ -258,7 +258,7 @@ def write_wav_file(frames: List, channels: int = 2, sample_width: int = 2, sampl
         wav.writeframes(b''.join(frames))
 
 
-def read(file_path: str,) -> Union[List, tuple[List, List]]:
+def read(file_path: str, norm: bool = False) -> Union[List, tuple[List, List]]:
     # one/two channel, two bytes sample width
     with wave.open(file_path, 'rb') as wav:
         sample_rate = wav.getframerate()
@@ -272,6 +272,8 @@ def read(file_path: str,) -> Union[List, tuple[List, List]]:
             l = [data[i] for i in range(0, len(data), 2)]
             r = [data[i] for i in range(1, len(data), 2)]
             data = (l, r)
+        if norm:
+            data = np.divide(data, 32767)
         return sample_rate, data
 
 
