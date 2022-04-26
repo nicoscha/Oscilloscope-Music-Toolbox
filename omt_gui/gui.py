@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
-from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QComboBox, QCheckBox, QDoubleSpinBox, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QRadioButton, QSpinBox, QSizePolicy, QSpacerItem, QTabWidget, QLineEdit, QVBoxLayout, QWidget
 from typing import Union
 from collections import namedtuple, OrderedDict
 import csv
@@ -25,22 +25,24 @@ from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_
 
 SAMPLE_RATE = 192000
 SAMPLES = SAMPLE_RATE*5
-parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side level hierarchy')
+parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side file level hierarchy')
 merges = OrderedDict()
 
 
-def show_load_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
+def show_load_file_pop_up(focus_root: Union[QWidget, None] = None,
+                          _filter: str = "CSV File (*.csv)") -> str:
     """
     Show a file dialog to select a file.
     Sets the focus back to the main window, if focus_root is set to a parent widget.
     :param focus_root: QWidget to set focus to
+    :param _filter: File type filter. Default: "CSV File (*.csv)"
     :return: Path as string
     """
     w = QFileDialog()
     w.setFileMode(QFileDialog.ExistingFile)
     local_path = __file__.replace('gui.py', '')
     file_path, _ = w.getOpenFileName(caption='Open File',
-                                     filter="CSV File (*.csv)",
+                                     filter=_filter,
                                      directory=local_path)
     # Set focus back to root when called from outside
     if focus_root:
@@ -161,8 +163,8 @@ class Selector(QHBoxLayout):
 
     def build(self, uu: str, side: str, signal=None, operator='*',
               amplitude: float = 1.0, frequency: float = 400,
-              offset: float = 0.0, clip: float = 1.0, level: int = 0,
-              hierarchy=None) -> None:
+              offset: float = 0.0, clip: float = 1.0, file: str = '',
+              level: int = 0, hierarchy=None) -> None:
         self.uu = uu
         self.side = side
 
@@ -196,12 +198,23 @@ class Selector(QHBoxLayout):
 
         self.combo_box = QComboBox()
         self.combo_box.setToolTip('Function')
-        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb', 'x^f'))
+        self.combo_box.addItems(('sin', 'cos', 'saw', 'tri', 'rec', 'comb', 'x^f', 'file'))
         if side == 'x' and signal == None:
             self.combo_box.setCurrentText('cos')
         else:
             self.combo_box.setCurrentText(signal)
+        self.combo_box.currentTextChanged.connect(self.change_visible_widgets)
         self.combo_box.currentTextChanged.connect(self.update_parameters)
+
+        self.file = file
+        self.file_select_button = QPushButton()
+        self.file_select_button.setText('Select file')
+        self.file_select_button.clicked.connect(self.select_file)
+
+        self.file_show_path_line_edit = QLineEdit()
+        self.file_show_path_line_edit.setEnabled(False)
+        if self.file:
+            self.file_show_path_line_edit.setText(self.file)
 
         self.frequency_spin_box = QDoubleSpinBox()
         self.frequency_spin_box.setToolTip('f in Hz')
@@ -245,9 +258,18 @@ class Selector(QHBoxLayout):
         self.addWidget(self.operator_combo_box)
         self.addWidget(self.amplitude_spin_box)
         self.addWidget(self.combo_box)
+        self.addWidget(self.file_select_button)
+        self.addWidget(self.file_show_path_line_edit)
         self.addWidget(self.frequency_spin_box)
         self.addWidget(self.offset_spin_box)
         self.addWidget(self.clip_box)
+        if signal == 'file':
+            self.frequency_spin_box.setVisible(False)
+            self.offset_spin_box.setVisible(False)
+            self.clip_box.setVisible(False)
+        else:
+            self.file_select_button.setVisible(False)
+            self.file_show_path_line_edit.setVisible(False)
         self.addWidget(self.delete_button)
         self.addSpacerItem(self.end_spacer)
 
@@ -263,6 +285,7 @@ class Selector(QHBoxLayout):
         frequency = self.frequency_spin_box.value()
         offset = round(self.offset_spin_box.value(), 2)
         clip = round(self.clip_box.value(), 2)
+        file = self.file
 
         if signal == 'comb':
             self.frequency_spin_box.setEnabled(False)
@@ -272,6 +295,7 @@ class Selector(QHBoxLayout):
         self.parameter = parameter(operator=operator, amplitude=amplitude,
                                    function=signal, frequency=frequency,
                                    offset=offset, clip=clip, side=self.side,
+                                   file=file,
                                    level=self.level, hierarchy=self.hierarchy)
         self.parameters[self.uu] = self.parameter
         #print(parameters[self.uu])
@@ -292,6 +316,35 @@ class Selector(QHBoxLayout):
         self.spacer.changeSize(50 * self.level, 0)
         self.invalidate()
 
+    def change_visible_widgets(self) -> None:
+        if self.combo_box.currentText() == 'file':
+            #self.removeWidget(self.frequency_spin_box)
+            self.frequency_spin_box.setVisible(False)
+            self.offset_spin_box.setVisible(False)
+            self.clip_box.setVisible(False)
+
+            self.file_select_button.setVisible(True)
+            self.file_show_path_line_edit.setVisible(True)
+
+            self.invalidate()
+        else:
+            self.file_select_button.setVisible(False)
+            self.file_show_path_line_edit.setVisible(False)
+
+            self.frequency_spin_box.setVisible(True)
+            self.offset_spin_box.setVisible(True)
+            self.clip_box.setVisible(True)
+
+            self.invalidate()
+
+    def select_file(self) -> None:
+        path = show_load_file_pop_up(_filter="WAV File (*.wav)")
+        if os.path.isfile(path):
+            # TODO save relative path not absolute
+            self.file = path
+            self.file_show_path_line_edit.setText(path)
+            self.update_parameters()
+
     def delete(self) -> None:
         """Implements functionality of the delete button"""
         number_selectors = len([None for p in self.parameters.values()])
@@ -308,6 +361,8 @@ class Selector(QHBoxLayout):
         self.operator_combo_box.deleteLater()
         self.amplitude_spin_box.deleteLater()
         self.combo_box.deleteLater()
+        self.file_select_button.deleteLater()
+        self.file_show_path_line_edit.deleteLater()
         self.frequency_spin_box.deleteLater()
         self.offset_spin_box.deleteLater()
         self.clip_box.deleteLater()
@@ -811,7 +866,7 @@ class GUI(QWidget):
         return x_y_widget
 
     def load(self, path: str = '') -> None:
-        if path == '':
+        if not os.path.isfile(path):
             file_path = show_load_file_pop_up()
             if not file_path:
                 return None
@@ -829,6 +884,8 @@ class GUI(QWidget):
             for description in reader:
                 if 'clip' not in description:
                     description['clip'] = '1.0'
+                if 'file' not in description:
+                    description['file'] = ''
 
                 uu = description['uu']
                 side = description['side']
@@ -838,8 +895,13 @@ class GUI(QWidget):
                 signal = description['function']
                 offset = float(description['offset'])
                 clip = float(description['clip'])
+                file = str(description['file'])
                 level = int(description['level'])
                 hierarchy = int(description['hierarchy'])
+
+                # Check if file currently exists
+                if not os.path.isfile(file):
+                    file = ''
 
                 s = Selector()
                 if side == 'x':
@@ -848,7 +910,7 @@ class GUI(QWidget):
                     s.add_parameters(self.y_parameters)
                 s.build(uu=uu, side=side, signal=signal, operator=operator,
                         amplitude=amplitude, frequency=frequency, offset=offset,
-                        clip=clip, level=level, hierarchy=hierarchy)
+                        clip=clip, file=file, level=level, hierarchy=hierarchy)
 
                 if description['side'] == 'x':
                     self.x_layout.add_selector(selector=s)
@@ -865,15 +927,15 @@ class GUI(QWidget):
             print(self.y_parameters)
             writer = csv.writer(file)
             writer.writerow(('operator', 'amplitude', 'function', 'frequency',
-                             'offset', 'clip', 'side', 'level', 'hierarchy',
-                             'uu'))
+                             'offset', 'clip', 'side', 'file', 'level',
+                             'hierarchy', 'uu'))
             for uu, p in self.x_parameters.items():
                 data = [p.operator, p.amplitude, p.function, p.frequency,
-                        p.offset, p.clip, p.side, p.level, p.hierarchy, uu]
+                        p.offset, p.clip, p.side, p.file, p.level, p.hierarchy, uu]
                 writer.writerow(data)
             for uu, p in self.y_parameters.items():
                 data = [p.operator, p.amplitude, p.function, p.frequency,
-                        p.offset, p.clip, p.side, p.level, p.hierarchy, uu]
+                        p.offset, p.clip, p.side, p.file, p.level, p.hierarchy, uu]
                 writer.writerow(data)
 
     def start(self) -> None:
