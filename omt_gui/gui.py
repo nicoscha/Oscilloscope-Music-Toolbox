@@ -223,7 +223,6 @@ class Selector(QHBoxLayout):
         self.frequency_spin_box.setSingleStep(0.02)
         self.frequency_spin_box.setValue(frequency)
         self.frequency_spin_box.valueChanged.connect(self.update_parameters)
-        self.frequency_spin_box.setVisible(signal != 'comb')
 
         self.offset_spin_box = QDoubleSpinBox()
         self.offset_spin_box.setToolTip('Offset')
@@ -288,8 +287,6 @@ class Selector(QHBoxLayout):
         clip = round(self.clip_box.value(), 2)
         file = self.file
 
-        self.frequency_spin_box.setVisible(signal != 'comb')
-
         self.parameter = parameter(operator=operator, amplitude=amplitude,
                                    function=signal, frequency=frequency,
                                    offset=offset, clip=clip, side=self.side,
@@ -323,8 +320,6 @@ class Selector(QHBoxLayout):
 
             self.file_select_button.setVisible(True)
             self.file_show_path_line_edit.setVisible(True)
-
-            self.invalidate()
         else:
             self.file_select_button.setVisible(False)
             self.file_show_path_line_edit.setVisible(False)
@@ -333,8 +328,7 @@ class Selector(QHBoxLayout):
             self.frequency_spin_box.setVisible(True)
             self.offset_spin_box.setVisible(True)
             self.clip_box.setVisible(True)
-
-            self.invalidate()
+        self.frequency_spin_box.setVisible(self.combo_box.currentText() != 'comb')
 
     def select_file(self) -> None:
         path = show_load_file_pop_up(_filter="WAV File (*.wav)")
