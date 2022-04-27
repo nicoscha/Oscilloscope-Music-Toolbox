@@ -75,7 +75,7 @@ def show_save_file_pop_up(focus_root: Union[QWidget, None] = None) -> str:
 class HierarchyButtons(QVBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu, _parameters) -> None:
+    def build(self, uu: str, _parameters: dict) -> None:
         self.uu = uu
         self.parameters = _parameters
         self.setSpacing(0)
@@ -116,7 +116,7 @@ class LevelButtons(QHBoxLayout):
     level_changed = pyqtSignal()
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu, _parameters) -> None:
+    def build(self, uu: str, _parameters: dict) -> None:
         self.uu = uu
         self.parameters = _parameters
         self.setSpacing(0)
@@ -162,7 +162,7 @@ class LevelButtons(QHBoxLayout):
 class Selector(QHBoxLayout):
     hierarchy_changed = pyqtSignal(tuple)
 
-    def build(self, uu: str, side: str, signal=None, operator='*',
+    def build(self, uu: str, side: str, signal=None, operator: str = '*',
               amplitude: float = 1.0, frequency: float = 400,
               offset: float = 0.0, clip: float = 1.0, file: str = '',
               level: int = 0, hierarchy=None) -> None:
@@ -276,7 +276,7 @@ class Selector(QHBoxLayout):
 
         self.update_spacer()
 
-    def add_parameters(self, _parameters) -> None:
+    def add_parameters(self, _parameters: dict) -> None:
         self.parameters = _parameters
 
     def update_parameters(self) -> None:
@@ -450,7 +450,7 @@ gen_sig = {'sin': gen_sin, 'cos': gen_cos, 'saw': gen_sawtooth,
            'tri': gen_triangle, 'rec': gen_rectangle, 'x^f': gen_x_over_y}
 
 
-def calc_signal(param) -> list[float]:
+def calc_signal(param: parameter) -> list[float]:
     if param.function == 'comb':
         raise ValueError
     f = param.frequency
@@ -485,9 +485,10 @@ def calc_signal(param) -> list[float]:
     return samples
 
 
-def combine(signal_list: list[tuple[list, str]], parameters) -> list[float]:
+def combine(signal_list: list[tuple[list, str]], parameters: dict) -> list[float]:
     """ Combine list of signals
     :param signal_list: [(signal, uuid)]
+    :param parameters: parameter dict of one side
     :return: combined signal
     """
     t_signal = signal_list[0][0]  # Load first signal
@@ -500,7 +501,7 @@ def combine(signal_list: list[tuple[list, str]], parameters) -> list[float]:
     return t_signal
 
 
-def calc_comb(param, signal: list) -> list[float]:
+def calc_comb(param: parameter, signal: list) -> list[float]:
     # Amplitude
     if param.amplitude != 1.0:
         signal = scale(signal, param.amplitude)
@@ -513,7 +514,7 @@ def calc_comb(param, signal: list) -> list[float]:
     return signal
 
 
-def valid_tree(tree: list[tuple[str, int, int]], parameters) -> str:
+def valid_tree(tree: list[tuple[str, int, int]], parameters: dict) -> str:
     tree_len = len(tree)
     side = parameters[tree[0][0]].side
     if tree_len == 1:
@@ -550,7 +551,7 @@ def valid_tree(tree: list[tuple[str, int, int]], parameters) -> str:
                 return f'Comb on level {current_l + 1} in {side} can\'t be empty. Add a selector on lower level or remove comb.'
 
 
-def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]], parameters):
+def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]], parameters: dict):
     h_list = [(None, None, None)] * len(tree)
     target_comb_index = None
     for (i, (uu, h, l)) in enumerate(tree):
@@ -569,7 +570,7 @@ def calc_signal_one_level(level: int, tree: list[tuple[str, int, int]], paramete
     return h_list
 
 
-def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list, parameters):
+def combine_one_level(level: int, tree: list[tuple[str, int, int]], h_list, parameters: dict):
     c_list = [None] * len(tree)
     combinations_on_level = [(uu, h, l) for (uu, h, l) in tree
                              if parameters[uu].function == 'comb'
@@ -595,7 +596,7 @@ def collapse_tree(level: int, tree: list[tuple[str, int, int]], c_list) -> tuple
     return t_tree, t_signals
 
 
-def calc_selector_tree(tree: list[tuple[str, int, int]], parameters):
+def calc_selector_tree(tree: list[tuple[str, int, int]], parameters: dict):
     t_tree = tree
     t_signals = None
     for _l in reversed(range(1, 1 + max([_l for (_, _, _l) in tree]))):
@@ -642,7 +643,7 @@ class XYLayout(QVBoxLayout):
         _selector.hierarchy_changed.connect(self.update_order)
         self.addLayout(_selector)
 
-    def remove_selector(self, uu) -> None:
+    def remove_selector(self, uu: str) -> None:
         for child in self.findChildren(Selector):
             if child.uu == uu:
                 child.remove()
@@ -733,7 +734,7 @@ def set_samples(samples_str: str) -> None:
         SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
 
 
-def show_error_message(title, message):
+def show_error_message(title: str, message: str):
     error_message = QMessageBox()
     error_message.setWindowTitle(title)
     error_message.setText(message)
