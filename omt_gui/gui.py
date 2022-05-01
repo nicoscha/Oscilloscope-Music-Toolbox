@@ -6,6 +6,7 @@ from typing import Union
 
 import warnings
 
+import numpy as np
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtMultimediaWidgets import QVideoWidget
@@ -186,7 +187,7 @@ class Selector(QHBoxLayout):
 
         self.operator_combo_box = QComboBox()
         self.operator_combo_box.setToolTip('Operation')
-        self.operator_combo_box.addItems(['*', '+'])
+        self.operator_combo_box.addItems(['*', '+', '-'])
         self.operator_combo_box.setCurrentText(operator)
         self.operator_combo_box.currentTextChanged.connect(self.update_parameters)
 
@@ -496,6 +497,8 @@ def combine(signal_list: list[tuple[list, str]], parameters: dict) -> list[float
         operator = parameters[_uu].operator
         if operator == '+':
             t_signal = add(signal, t_signal)
+        elif operator == '-':
+            t_signal = np.subtract(signal, t_signal)
         elif operator == '*':
             t_signal = multiply(signal, t_signal)
     return t_signal
