@@ -127,12 +127,9 @@ def gen_rectangle(frequency: int, sample_rate: int, duration: int) -> np.array:
     minus_ones = np.multiply(ones, -1)
     rec_wave = np.concatenate((ones, minus_ones))
     repeated_wave = np.array([])
-    for i in range(int(duration // len_wave)):
+    for i in range(int(duration // len_wave) + 1):
         repeated_wave = np.concatenate((repeated_wave, rec_wave))
-    missing = duration - len(repeated_wave)
-    if missing != 0:
-        repeated_wave = np.concatenate((repeated_wave, rec_wave[0: missing]))
-    return repeated_wave
+    return repeated_wave[:duration]
 
 
 def gen_x_over_y(y: int, sample_rate: int, duration: int) -> np.array:
