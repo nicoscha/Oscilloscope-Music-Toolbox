@@ -26,7 +26,8 @@ from uuid import uuid4
 from omt_utils import add, clip, gen_sin, gen_cos, gen_morph, gen_triangle, gen_sawtooth, gen_rectangle, gen_x_over_y, offset, write, read, scale, multiply
 
 SAMPLE_RATE = 192000
-SAMPLES = SAMPLE_RATE*5
+DURATION = 5
+SAMPLES = SAMPLE_RATE * DURATION
 parameter = namedtuple('parameter', 'operator amplitude function frequency offset clip side file level hierarchy')
 merges = OrderedDict()
 
@@ -726,15 +727,22 @@ class MergeLayout(XYLayout):
 def set_sample_rate(sample_rate_str: str) -> None:
     global SAMPLE_RATE
     SAMPLE_RATE = int(float(sample_rate_str.replace('k Hz', '')) * 1000)
+    set_samples('')
 
 
 def set_samples(samples_str: str) -> None:
     global SAMPLES
+    global DURATION
     if samples_str == 'calc lcm':
         SAMPLES = 48000 #int(SAMPLE_RATE / math.lcm(*[int(p.frequency) for p in parameters.values()]))
+        DURATION = 1
         print('lcm of', SAMPLES, 'samples')
     else:
-        SAMPLES = int(samples_str.replace('s', '')) * SAMPLE_RATE
+        if samples_str != '':
+            DURATION = int(samples_str.replace('s', ''))
+            SAMPLES = DURATION * SAMPLE_RATE
+        else:  # Call from set_sample_rate to compute length after sample rate change
+            SAMPLES = SAMPLE_RATE * DURATION
 
 
 def show_error_message(title: str, message: str):
