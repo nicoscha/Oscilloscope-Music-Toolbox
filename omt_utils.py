@@ -127,7 +127,7 @@ def gen_rectangle(frequency: int, sample_rate: int, duration: int) -> np.array:
     minus_ones = np.multiply(ones, -1)
     rec_wave = np.concatenate((ones, minus_ones))
     repeated_wave = np.array([])
-    for i in range(int(duration // len_wave) + 1):
+    for i in range(int(duration // len_wave) + 2):
         repeated_wave = np.concatenate((repeated_wave, rec_wave))
     return repeated_wave[:duration]
 
