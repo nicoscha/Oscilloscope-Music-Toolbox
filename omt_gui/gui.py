@@ -804,7 +804,7 @@ class ImageDisplay(QCheckBox):
 
             # Combine files
             output_file_name = 'animation.mp4'
-            os.system(f'ffmpeg -y -i temp_{uu}_%02d.png -c:v libx264 -vf fps={fps} -pix_fmt yuv420p {output_file_name}')
+            os.system(f'ffmpeg -r 30 -y -i temp_{uu}_%02d.png -c:v libx264 -vf fps={fps} -pix_fmt yuv420p {output_file_name}')
 
             # Remove files
             for file_name in files:
