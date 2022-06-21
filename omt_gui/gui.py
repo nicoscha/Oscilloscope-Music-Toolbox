@@ -488,11 +488,11 @@ def calc_signal(param: parameter) -> list[float]:
 
 def combine(signal_list: list[tuple[list, str]], parameters: dict) -> list[float]:
     """ Combine list of signals
-    :param signal_list: [(signal, uuid)]
+    :param signal_list: [(function, uuid)]
     :param parameters: parameter dict of one side
-    :return: combined signal
+    :return: combined function
     """
-    t_signal = signal_list[0][0]  # Load first signal
+    t_signal = signal_list[0][0]  # Load first function
     for signal, _uu in signal_list[1:]:
         operator = parameters[_uu].operator
         if operator == '+':
@@ -605,7 +605,7 @@ def calc_selector_tree(tree: list[tuple[str, int, int]], parameters: dict):
     for _l in reversed(range(1, 1 + max([_l for (_, _, _l) in tree]))):
         hierarchy_list = calc_signal_one_level(_l, t_tree, parameters)
         if t_signals:  # Merge signals with last combination
-            hierarchy_list = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])  # h_l[0] == signal
+            hierarchy_list = [h_l if h_l[0] is not None else (t_s, h_l[1], h_l[2])  # h_l[0] == function
                               for (h_l, t_s) in zip(hierarchy_list, t_signals)]
         combined_list = combine_one_level(_l - 1, t_tree, hierarchy_list, parameters)
         t_tree, t_signals = collapse_tree(_l, t_tree, combined_list)
@@ -626,7 +626,7 @@ class XYLayout(QVBoxLayout):
         self.side = side
 
         add_button = QPushButton()
-        add_button.setText(f'Add {side} signal')
+        add_button.setText(f'Add {side} function')
         add_button.clicked.connect(self.add_selector)
 
         self.addWidget(add_button)
