@@ -346,6 +346,7 @@ def convert_image_to_audio(file_name: str) -> tuple[List, List]:
     # Load image and drop redundant data
     image = mat_img.imread(file_name)
     image = image[:, :, 0]
+    image = np.flip(image, axis=0)
     # Reduce color
     image_size = len(image)
     for i_x in range(image_size):
